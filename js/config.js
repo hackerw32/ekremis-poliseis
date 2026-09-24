@@ -12,12 +12,12 @@ export const appSettings = {
 
 // ↓↓↓ Βάλε εδώ το config από το Firebase Console (Project settings → Your apps → Web) ↓↓↓
 export const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
+  apiKey: "AIzaSyBzgkl6ee5nkRwkDbXIvjkc9LPuRKGfHow",
+  authDomain: "ekremis-poliseis.firebaseapp.com",
+  projectId: "ekremis-poliseis",
+  storageBucket: "ekremis-poliseis.firebasestorage.app",
+  messagingSenderId: "924180352212",
+  appId: "1:924180352212:web:3d61eba21f4394691dff41",
 };
 
 // Συλλογή στο Firestore όπου αποθηκεύονται οι υποθέσεις
