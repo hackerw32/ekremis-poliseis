@@ -65,16 +65,15 @@ export async function importLeads(leads, { replace = false } = {}) {
     return leads.length;
   }
   const existing = new Set(listLeads().map(dedupeKey));
-  let added = 0;
+  const fresh = [];
   for (const l of leads) {
     const key = dedupeKey(l);
     if (existing.has(key)) continue;
     existing.add(key);
-    // eslint-disable-next-line no-await-in-loop
-    await db.add(COL, normalize(l));
-    added += 1;
+    fresh.push(normalize(l));
   }
-  return added;
+  await db.addMany(COL, fresh);
+  return fresh.length;
 }
 
 export function statusCounts() {

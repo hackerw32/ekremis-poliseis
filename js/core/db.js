@@ -259,6 +259,26 @@ export async function remove(col, id) {
   emit();
 }
 
+export async function addMany(col, records) {
+  const now = new Date().toISOString();
+  const mapped = (records || []).map((r) => ({ ...r, id: r.id || newId(), createdAt: r.createdAt || now, updatedAt: now }));
+  if (!mapped.length) return 0;
+  if (state.mode === "firebase") {
+    const { db, fs } = await getFirebase();
+    for (let i = 0; i < mapped.length; i += 400) {
+      const batch = fs.writeBatch(db);
+      mapped.slice(i, i + 400).forEach((r) => batch.set(fs.doc(db, "users", state.uid, col, r.id), r));
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+    return mapped.length;
+  }
+  state.data[col] = [...mapped, ...list(col)];
+  persistLocal(col);
+  emit();
+  return mapped.length;
+}
+
 export async function replaceAll(col, records) {
   const now = new Date().toISOString();
   const mapped = (records || []).map((r) => ({ ...r, id: r.id || newId(), createdAt: r.createdAt || now, updatedAt: now }));
