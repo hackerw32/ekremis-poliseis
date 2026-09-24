@@ -1,8 +1,10 @@
 // Κεντρικός hub: launcher, routing και κοινό περιβάλλον για όλες τις εφαρμογές.
-import { init as initDb, getState, subscribe } from "./core/db.js";
+import { init as initDb, getState, subscribe, stop as stopDb } from "./core/db.js";
 import { appSettings } from "./config.js";
 import { debounce } from "./utils.js";
 import { renderHome } from "./home.js";
+import { onAuthChange, authAvailable, displayName, signOutUser } from "./core/auth.js";
+import { renderAuth } from "./auth-view.js";
 import * as ekremis from "./ekremis-app.js";
 import * as tameio from "./tameio/app.js";
 import * as texnikos from "./texnikos/app.js";
@@ -23,6 +25,7 @@ try {
 } catch {}
 
 let current = { appId: "home", sub: "" };
+let currentUser = null;
 const main = () => document.getElementById("main");
 
 function persistUi() {
@@ -131,6 +134,8 @@ function render() {
       syncText: sync.text,
       syncClass: sync.cls,
       comingSoon: COMING_SOON,
+      user: currentUser ? displayName(currentUser) : "",
+      onLogout: () => signOutUser(),
     });
   } else {
     const mod = activeModule();
@@ -151,6 +156,13 @@ function bindEvents() {
     persistUi();
     render();
   });
+
+  const logoutBtn = document.getElementById("btn-logout");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      signOutUser().catch((e) => console.warn(e));
+    });
+  }
 
   document.getElementById("btn-add").addEventListener("click", () => {
     const mod = activeModule();
@@ -187,6 +199,10 @@ function bindEvents() {
   });
 
   main().addEventListener("click", async (e) => {
+    if (e.target.closest('[data-hub-action="logout"]')) {
+      signOutUser().catch((err) => console.warn(err));
+      return;
+    }
     const themeBtn = e.target.closest("[data-theme-set]");
     if (themeBtn) {
       ui.theme = themeBtn.dataset.themeSet;
@@ -214,6 +230,26 @@ function bindEvents() {
 }
 
 // ------------------------------- Boot --------------------------------------
+function updateUserBox() {
+  const box = document.getElementById("user-box");
+  const name = document.getElementById("user-name");
+  if (!box) return;
+  box.hidden = !currentUser;
+  if (name && currentUser) name.textContent = displayName(currentUser);
+}
+
+async function startApp(uid, user) {
+  currentUser = user || null;
+  updateUserBox();
+  await initDb(uid);
+}
+
+function stopApp() {
+  currentUser = null;
+  stopDb();
+  updateUserBox();
+}
+
 async function boot() {
   applyTheme();
   bindEvents();
@@ -236,7 +272,25 @@ async function boot() {
   });
 
   if (!location.hash) location.hash = "#/home";
-  await initDb();
+
+  const authRoot = document.getElementById("auth-root");
+
+  if (!authAvailable()) {
+    // Χωρίς Firebase: τοπική λειτουργία χωρίς σύνδεση.
+    await startApp("local", null);
+    return;
+  }
+
+  onAuthChange(async (user) => {
+    if (!user) {
+      stopApp();
+      renderAuth(authRoot);
+      return;
+    }
+    authRoot.classList.remove("open");
+    authRoot.innerHTML = "";
+    await startApp(user.uid, user);
+  });
 }
 
 boot();

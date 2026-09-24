@@ -466,3 +466,33 @@ input, select, textarea { font: inherit; color: inherit; }
   .work-item .mini-btn.danger { display: inline-block; }
 }
 
+/* ============================ AUTH (login/εγγραφή) ============================ */
+.auth-root { display: none; position: fixed; inset: 0; z-index: 300; }
+.auth-root.open { display: block; }
+.auth-wrap {
+  min-height: 100dvh; display: grid; place-items: center; padding: 22px;
+  background: radial-gradient(1200px 600px at 20% -10%, var(--primary-soft), transparent 60%),
+    radial-gradient(900px 500px at 100% 10%, var(--purple-soft), transparent 55%), var(--bg);
+}
+.auth-card {
+  width: min(400px, 100%); background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: 22px; padding: 26px; box-shadow: var(--shadow);
+}
+.auth-brand { text-align: center; margin-bottom: 18px; }
+.auth-logo { font-size: 40px; }
+.auth-brand h1 { margin: 6px 0 2px; font-size: 22px; }
+.auth-brand p { margin: 0; color: var(--muted); font-size: 13px; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--bg-soft); padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+.auth-tab { border: none; background: transparent; padding: 9px; border-radius: 9px; font-weight: 700; color: var(--muted); }
+.auth-tab.active { background: var(--bg-elev); color: var(--text); box-shadow: var(--shadow-sm); }
+.auth-card .field { margin-bottom: 12px; }
+.auth-error { color: var(--danger); background: var(--danger-soft); padding: 9px 11px; border-radius: 10px; font-size: 13px; margin: 4px 0 10px; }
+.auth-submit { margin-top: 6px; }
+.auth-link { display: block; width: 100%; margin-top: 14px; background: none; border: none; color: var(--primary); font-weight: 600; font-size: 13px; }
+.auth-foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; max-width: 380px; }
+
+.user-box { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.user-box .u-name { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-hero-right { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.home-user { display: flex; align-items: center; gap: 8px; font-size: 12.5px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px; padding: 5px 6px 5px 12px; font-weight: 600; }
+

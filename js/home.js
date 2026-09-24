@@ -25,12 +25,15 @@ export function renderHome(container, apps, ctx) {
     <div class="home">
       <div class="home-hero">
         <div>
-          <h1>Καλώς ήρθατε 👋</h1>
+          <h1>Καλώς ήρθες${ctx.user ? ", " + escapeHtml(ctx.user) : ""} 👋</h1>
           <p>${escapeHtml(ctx.agency)} — διάλεξε εφαρμογή για να ξεκινήσεις.</p>
         </div>
-        <div class="home-sync ${ctx.syncClass}"><span class="dot"></span>${escapeHtml(ctx.syncText)}</div>
+        <div class="home-hero-right">
+          ${ctx.user ? `<div class="home-user"><span>👤</span>${escapeHtml(ctx.user)}<button class="mini-btn" data-hub-action="logout" title="Έξοδος">Έξοδος</button></div>` : ""}
+          <div class="home-sync ${ctx.syncClass}"><span class="dot"></span>${escapeHtml(ctx.syncText)}</div>
+        </div>
       </div>
       <div class="app-grid">${cards}${soon}</div>
-      <p class="home-hint">Όλα τα δεδομένα συγχρονίζονται αυτόματα. Νέες εφαρμογές θα προστίθενται εδώ.</p>
+      <p class="home-hint">Όλα τα δεδομένα είναι ξεχωριστά για κάθε χρήστη και συγχρονίζονται αυτόματα. Νέες εφαρμογές θα προστίθενται εδώ.</p>
     </div>`;
 }

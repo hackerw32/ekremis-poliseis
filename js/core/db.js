@@ -1,10 +1,10 @@
-// Κεντρικό layer δεδομένων για όλες τις εφαρμογές του hub.
-// Υποστηρίζει δύο backends: Firebase Firestore (συγχρονισμός) ή localStorage.
-// Κάθε "collection" είναι ένας πίνακας εγγραφών με κοινό πεδίο `id`.
+// Κεντρικό layer δεδομένων. Τα δεδομένα κάθε χρήστη είναι ξεχωριστά:
+//   Firebase: users/{uid}/{collection}
+//   Τοπικά:   hub_v1_{uid}_{collection}
 
 import { getFirebase, isFirebaseConfigured } from "../config.js";
 import { SEED_PROPERTIES } from "../seed-data.js";
-import { uid } from "../utils.js";
+import { uid as newId } from "../utils.js";
 
 export const COLLECTIONS = {
   properties: { seed: SEED_PROPERTIES },
@@ -13,6 +13,7 @@ export const COLLECTIONS = {
   tameio_jobs: { seed: [] },
   tameio_transactions: { seed: [] },
   texnikos_docs: { seed: [] },
+  leads: { seed: [] },
 };
 
 const LS = "hub_v1_";
@@ -23,6 +24,7 @@ const state = {
   ready: false,
   mode: isFirebaseConfigured() ? "firebase" : "local",
   error: null,
+  uid: null,
   data: {},
 };
 Object.keys(COLLECTIONS).forEach((c) => {
@@ -30,6 +32,7 @@ Object.keys(COLLECTIONS).forEach((c) => {
 });
 
 let started = false;
+let unsubs = [];
 
 export function subscribe(fn) {
   listeners.add(fn);
@@ -58,18 +61,23 @@ function collectionSeed(col) {
 
 function withSeed(records) {
   const now = new Date().toISOString();
-  return records.map((r) => ({
-    id: uid(),
-    ...r,
-    createdAt: r.createdAt || now,
-    updatedAt: now,
-  }));
+  return records.map((r) => ({ id: newId(), ...r, createdAt: r.createdAt || now, updatedAt: now }));
+}
+
+function emptyData() {
+  const d = {};
+  Object.keys(COLLECTIONS).forEach((c) => (d[c] = []));
+  return d;
 }
 
 // ------------------------------- LOCAL -------------------------------------
+function localKey(col) {
+  return `${LS}${state.uid}_${col}`;
+}
+
 function persistLocal(col) {
   try {
-    localStorage.setItem(LS + col, JSON.stringify(state.data[col] || []));
+    localStorage.setItem(localKey(col), JSON.stringify(state.data[col] || []));
   } catch (e) {
     console.warn("localStorage write error", col, e);
   }
@@ -79,7 +87,7 @@ function loadLocal() {
   Object.keys(COLLECTIONS).forEach((col) => {
     let stored = null;
     try {
-      stored = localStorage.getItem(LS + col);
+      stored = localStorage.getItem(localKey(col));
     } catch {
       stored = null;
     }
@@ -91,7 +99,7 @@ function loadLocal() {
           return;
         }
       } catch (e) {
-        console.warn("localStorage parse error", col, e);
+        console.warn("parse error", col, e);
       }
     }
     const seed = collectionSeed(col);
@@ -106,9 +114,9 @@ async function seedFirebase(col, fs, db) {
   if (!seed.length) return;
   try {
     const batch = fs.writeBatch(db);
-    withSeed(seed).forEach((r) => batch.set(fs.doc(db, col, r.id), r));
+    withSeed(seed).forEach((r) => batch.set(fs.doc(db, "users", state.uid, col, r.id), r));
     await batch.commit();
-    localStorage.setItem(SEED_FLAG + col, "1");
+    localStorage.setItem(SEED_FLAG + state.uid + col, "1");
   } catch (e) {
     console.error("seed error", col, e);
   }
@@ -126,7 +134,6 @@ async function initFirebase() {
   const { db, fs } = fb;
   const pending = new Set(Object.keys(COLLECTIONS));
 
-  // Δικλείδα ασφαλείας: μην μείνει η εφαρμογή «κολλημένη» σε αργό/μπλοκαρισμένο δίκτυο.
   setTimeout(() => {
     if (!state.ready) {
       state.ready = true;
@@ -135,8 +142,9 @@ async function initFirebase() {
   }, 8000);
 
   Object.keys(COLLECTIONS).forEach((col) => {
-    fs.onSnapshot(
-      fs.collection(db, col),
+    const ref = fs.collection(db, "users", state.uid, col);
+    const unsub = fs.onSnapshot(
+      ref,
       (snap) => {
         const arr = [];
         snap.forEach((d) => arr.push({ id: d.id, ...d.data() }));
@@ -145,11 +153,8 @@ async function initFirebase() {
         state.error = null;
         if (pending.size === 0) state.ready = true;
         emit();
-        if (arr.length) {
-          localStorage.setItem(SEED_FLAG + col, "1");
-        } else if (!localStorage.getItem(SEED_FLAG + col)) {
-          seedFirebase(col, fs, db);
-        }
+        if (arr.length) localStorage.setItem(SEED_FLAG + state.uid + col, "1");
+        else if (!localStorage.getItem(SEED_FLAG + state.uid + col)) seedFirebase(col, fs, db);
       },
       (err) => {
         console.error("snapshot error", col, err);
@@ -159,12 +164,21 @@ async function initFirebase() {
         emit();
       }
     );
+    unsubs.push(unsub);
   });
 }
 
-export async function init() {
-  if (started) return;
+export async function init(userId) {
+  const target = userId || "local";
+  if (started && state.uid === target) return;
+  stop();
+  state.uid = target;
+  state.data = emptyData();
+  state.ready = false;
+  state.error = null;
+  state.mode = isFirebaseConfigured() ? "firebase" : "local";
   started = true;
+
   if (state.mode === "firebase") {
     try {
       await initFirebase();
@@ -183,6 +197,16 @@ export async function init() {
   }
 }
 
+export function stop() {
+  unsubs.forEach((u) => {
+    try {
+      u();
+    } catch {}
+  });
+  unsubs = [];
+  started = false;
+}
+
 // ------------------------------- CRUD --------------------------------------
 export function list(col) {
   return state.data[col] || [];
@@ -194,13 +218,13 @@ export function get(col, id) {
 
 export async function add(col, record) {
   const now = new Date().toISOString();
-  const id = record.id || uid();
+  const id = record.id || newId();
   const rec = { ...record, id };
   if (!rec.createdAt) rec.createdAt = now;
   rec.updatedAt = now;
   if (state.mode === "firebase") {
     const { db, fs } = await getFirebase();
-    await fs.setDoc(fs.doc(db, col, id), rec);
+    await fs.setDoc(fs.doc(db, "users", state.uid, col, id), rec);
     return id;
   }
   state.data[col] = [rec, ...list(col)];
@@ -216,7 +240,7 @@ export async function update(col, id, patch) {
     const clean = { ...patch };
     delete clean.id;
     clean.updatedAt = now;
-    await fs.setDoc(fs.doc(db, col, id), clean, { merge: true });
+    await fs.setDoc(fs.doc(db, "users", state.uid, col, id), clean, { merge: true });
     return;
   }
   state.data[col] = list(col).map((r) => (r.id === id ? { ...r, ...patch, updatedAt: now } : r));
@@ -227,7 +251,7 @@ export async function update(col, id, patch) {
 export async function remove(col, id) {
   if (state.mode === "firebase") {
     const { db, fs } = await getFirebase();
-    await fs.deleteDoc(fs.doc(db, col, id));
+    await fs.deleteDoc(fs.doc(db, "users", state.uid, col, id));
     return;
   }
   state.data[col] = list(col).filter((r) => r.id !== id);
@@ -237,17 +261,12 @@ export async function remove(col, id) {
 
 export async function replaceAll(col, records) {
   const now = new Date().toISOString();
-  const mapped = (records || []).map((r) => ({
-    ...r,
-    id: r.id || uid(),
-    createdAt: r.createdAt || now,
-    updatedAt: now,
-  }));
+  const mapped = (records || []).map((r) => ({ ...r, id: r.id || newId(), createdAt: r.createdAt || now, updatedAt: now }));
   if (state.mode === "firebase") {
     const { db, fs } = await getFirebase();
     const batch = fs.writeBatch(db);
-    list(col).forEach((r) => batch.delete(fs.doc(db, col, r.id)));
-    mapped.forEach((r) => batch.set(fs.doc(db, col, r.id), r));
+    list(col).forEach((r) => batch.delete(fs.doc(db, "users", state.uid, col, r.id)));
+    mapped.forEach((r) => batch.set(fs.doc(db, "users", state.uid, col, r.id), r));
     await batch.commit();
     return;
   }
@@ -260,7 +279,7 @@ export async function clear(col) {
   if (state.mode === "firebase") {
     const { db, fs } = await getFirebase();
     const batch = fs.writeBatch(db);
-    list(col).forEach((r) => batch.delete(fs.doc(db, col, r.id)));
+    list(col).forEach((r) => batch.delete(fs.doc(db, "users", state.uid, col, r.id)));
     await batch.commit();
     return;
   }
@@ -271,14 +290,4 @@ export async function clear(col) {
 
 export function exportAll() {
   return JSON.stringify(state.data, null, 2);
-}
-
-export async function importAll(obj) {
-  if (!obj || typeof obj !== "object") throw new Error("Μη έγκυρο αρχείο");
-  for (const col of Object.keys(COLLECTIONS)) {
-    if (Array.isArray(obj[col])) {
-      // eslint-disable-next-line no-await-in-loop
-      await replaceAll(col, obj[col]);
-    }
-  }
 }
