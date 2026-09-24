@@ -496,3 +496,13 @@ input, select, textarea { font: inherit; color: inherit; }
 .home-hero-right { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .home-user { display: flex; align-items: center; gap: 8px; font-size: 12.5px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px; padding: 5px 6px 5px 12px; font-weight: 600; }
 
+/* ============================ LEADS ============================ */
+.match-list { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.match-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border-soft); cursor: pointer; }
+.match-row:last-child { border-bottom: none; }
+.match-row:hover { background: var(--bg-soft); }
+.match-row input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+.m-main { flex: 1; min-width: 0; }
+.m-title { font-weight: 600; }
+.match-score { font-weight: 800; color: var(--primary); background: var(--primary-soft); border-radius: 8px; padding: 2px 8px; font-size: 12px; }
+

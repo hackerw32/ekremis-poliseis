@@ -8,8 +8,9 @@ import { renderAuth } from "./auth-view.js";
 import * as ekremis from "./ekremis-app.js";
 import * as tameio from "./tameio/app.js";
 import * as texnikos from "./texnikos/app.js";
+import * as leads from "./leads/app.js";
 
-const APPS = [ekremis, tameio, texnikos];
+const APPS = [ekremis, tameio, texnikos, leads];
 const MODULES = Object.fromEntries(APPS.map((a) => [a.meta.id, a]));
 
 const COMING_SOON = [
@@ -197,6 +198,8 @@ function bindEvents() {
     closeMenu();
     render();
   });
+
+  document.addEventListener("hub:refresh", () => render());
 
   main().addEventListener("click", async (e) => {
     if (e.target.closest('[data-hub-action="logout"]')) {
