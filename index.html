@@ -34,15 +34,10 @@
     </header>
 
     <aside class="sidebar" id="sidebar">
-      <nav class="nav">
-        <a class="nav-item" data-route="dashboard" href="#/dashboard"><span class="ni">📊</span> Dashboard</a>
-        <a class="nav-item" data-route="properties" href="#/properties"><span class="ni">🏠</span> Υποθέσεις <span class="badge" id="nav-count-props">0</span></a>
-        <a class="nav-item" data-route="tasks" href="#/tasks"><span class="ni">✅</span> Εκκρεμότητες <span class="badge warn" id="nav-count-tasks">0</span></a>
-        <a class="nav-item" data-route="settings" href="#/settings"><span class="ni">⚙️</span> Ρυθμίσεις</a>
-      </nav>
+      <nav class="nav" id="app-nav"></nav>
       <div class="sidebar-foot">
-        <div class="sync-status" id="sync-status">
-          <span class="dot"></span><span id="sync-text">Φόρτωση…</span>
+        <div class="sync-status" id="sidebar-sync">
+          <span class="dot"></span><span>Φόρτωση…</span>
         </div>
       </div>
     </aside>
@@ -55,12 +50,7 @@
       </div>
     </main>
 
-    <nav class="bottom-nav">
-      <a class="bn-item" data-route="dashboard" href="#/dashboard"><span>📊</span><em>Dashboard</em></a>
-      <a class="bn-item" data-route="properties" href="#/properties"><span>🏠</span><em>Υποθέσεις</em></a>
-      <a class="bn-item" data-route="tasks" href="#/tasks"><span>✅</span><em>Εκκρεμότητες</em></a>
-      <a class="bn-item" data-route="settings" href="#/settings"><span>⚙️</span><em>Ρυθμίσεις</em></a>
-    </nav>
+    <nav class="bottom-nav" id="bottom-nav"></nav>
   </div>
 
   <div class="modal-root" id="modal-root" aria-hidden="true"></div>

@@ -1,82 +1,76 @@
-# Εκκρεμείς Πωλήσεις — Dashboard
+# Γραφείο — Κεντρικό Dashboard
 
-Εφαρμογή διαχείρισης εκκρεμών πωλήσεων μεσιτικού γραφείου. Λειτουργεί σε
-**κινητό και υπολογιστή** (responsive) και φιλοξενείται δωρεάν στο **GitHub Pages**.
+Ενιαία web εφαρμογή (hub) για **Τεχνικό & Μεσιτικό Γραφείο**, που λειτουργεί σε
+**κινητό και υπολογιστή** και φιλοξενείται στο **GitHub Pages**. Στην εκκίνηση
+ρωτάει ποια εφαρμογή θέλεις να ανοίξεις.
 
-## Δυνατότητες
+## Εφαρμογές
 
-- **Dashboard** με στατιστικά: πλήθος υποθέσεων, ενεργές, εκκρεμότητες, αξία, προκαταβολές, οφειλές.
-- **Υποθέσεις**: αναζήτηση (κωδικός, όνομα, τηλέφωνο), φίλτρα κατάστασης και σημάνσεων, ταξινόμηση.
-- **Καρτέλα υπόθεσης**: οικονομικά, επαφές (με κλήση/Viber/email), ενδιαφερόμενοι, εκκρεμότητες, οφειλές, σημειώσεις.
-- **Εκκρεμότητες**: ομαδοποίηση σε εκπρόθεσμες / επόμενες 7 ημέρες / αργότερα / χωρίς ημερομηνία, με υπεύθυνο και προθεσμία.
-- **Πλήρης διαχείριση**: προσθήκη, επεξεργασία, διαγραφή, γρήγορη εναλλαγή ολοκλήρωσης εργασιών/οφειλών.
-- **Συγχρονισμός** σε όλες τις συσκευές μέσω Firebase Firestore (προαιρετικό) ή τοπική αποθήκευση.
-- Εξαγωγή/εισαγωγή δεδομένων σε JSON (backup), επαναφορά αρχικών δεδομένων.
+| Εφαρμογή | Περιεχόμενο |
+|---|---|
+| 🏠 **Εκκρεμείς Πωλήσεις** | Υποθέσεις πωλήσεων, επαφές, εκκρεμότητες, οφειλές, dashboard |
+| 💰 **Ταμείο** | Έσοδα/έξοδα, υποθέσεις (Α/Π), πελάτες, συνεργάτες, αναφορές Excel/PDF |
+| 📐 **Τεχνικός Έλεγχος** | Δημιουργία εγγράφων τεχνικού ελέγχου με πρότυπα, εκτύπωση/PDF |
+
+Σύντομα θα προστεθούν κι άλλα (π.χ. Αγγελίες xe.gr, Email/Προσφορές, Έντυπα/Εντολές).
+
+## Δυνατότητες (σύνοψη)
+
+- **Launcher** με κάρτες εφαρμογών, κοινό σκούρο/φωτεινό θέμα, responsive πλοήγηση.
+- **Συγχρονισμός** σε όλες τις συσκευές μέσω Firebase Firestore (realtime).
+- **Ταμείο**: έσοδα/έξοδα με κατηγορίες/τρόπους πληρωμής, σύνδεση με πελάτη/συνεργάτη/υπόθεση,
+  αυτόματα υπόλοιπα (τι συμφωνήθηκε − τι εισπράχθηκε/πληρώθηκε), μηνιαίο γράφημα,
+  αναφορές με εξαγωγή CSV (Excel) και εκτύπωση/PDF.
+- **Τεχνικός Έλεγχος**: φόρμα με έτοιμα πρότυπα (εισαγωγή, ιδιοκτησία, έλεγχος, εργασίες,
+  αμοιβή), λίστα εργασιών με σειρά, προεπισκόπηση/εκτύπωση σε A4 με τα στοιχεία του γραφείου.
+- **Backup**: εξαγωγή/εισαγωγή JSON σε κάθε εφαρμογή.
 
 ## Τοπική εκτέλεση
 
-Άνοιξε το `index.html` σε browser, ή σήκωσε έναν τοπικό server:
+```powershell
+python -m http.server 8080
+# άνοιξε http://localhost:8080
+```
+
+> Χρειάζεται http(s)· όχι άνοιγμα με διπλό κλικ (file://) λόγω ES modules.
+
+## Firebase (συγχρονισμός)
+
+Είναι ήδη ρυθμισμένο στο `js/config.js` για το project `ekremis-poliseis`.
+Οι κανόνες βρίσκονται στο `firebase/firestore.rules` και ανεβαίνουν με:
 
 ```powershell
-# από τον φάκελο του project
-python -m http.server 8080
-# μετά άνοιξε http://localhost:8080
+firebase deploy --only firestore:rules
 ```
 
-> Σημείωση: για σωστή λειτουργία των ES modules καλό είναι να τρέχει μέσω http(s),
-> όχι με διπλό κλικ στο αρχείο (file://).
-
-## Συγχρονισμός με Firebase (κινητό + υπολογιστής)
-
-Χωρίς ρύθμιση, τα δεδομένα μένουν τοπικά στη συσκευή (localStorage). Για κοινά
-δεδομένα σε όλες τις συσκευές:
-
-1. Πήγαινε στο <https://console.firebase.google.com> → **Add project** (δωρεάν πλάνο Spark).
-2. Μέσα στο project: **Build → Firestore Database → Create database** (Production mode ή Test mode).
-3. **Project settings (⚙️) → Your apps → Web (`</>`)** → δημιούργησε app και αντίγραψε το `firebaseConfig`.
-4. Άνοιξε το `js/config.js` και συμπλήρωσε το `firebaseConfig`:
-
-```js
-export const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "to-project.firebaseapp.com",
-  projectId: "to-project",
-  storageBucket: "to-project.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef",
-};
-```
-
-5. Στο **Firestore → Rules** βάλε κανόνες (δες `firebase/firestore.rules`) και **Publish**.
-6. Άνοιξε την εφαρμογή: στο πρώτο άνοιγμα θα περαστούν αυτόματα οι αρχικές υποθέσεις.
-
-### Ασφάλεια
-
-Οι κανόνες που δίνω επιτρέπουν πρόσβαση σε όποιον γνωρίζει το project. Είναι
-ικανοποιητικό για προσωπική/εσωτερική χρήση. Για αυξημένη ασφάλεια μπορεί
-αργότερα να προστεθεί Firebase Authentication (π.χ. email/κωδικός) και οι κανόνες
-να απαιτούν συνδεδεμένο χρήστη.
+Για **ασφάλεια**, αξίζει αργότερα να προστεθεί Firebase Authentication ώστε να
+έχουν πρόσβαση μόνο συνδεδεμένοι χρήστες (ο κανόνας γίνεται
+`allow read, write: if request.auth != null;`).
 
 ## Δομή αρχείων
 
 ```
-index.html            # κέλυφος εφαρμογής
-styles.css            # responsive στυλ (φωτεινό/σκούρο θέμα)
+index.html                # κέλυφος hub (launcher + nav)
+styles.css                # κοινά responsive στυλ
+firebase/firestore.rules  # κανόνες βάσης
+firebase.json, .firebaserc
 js/
-  app.js              # εκκίνηση, routing, event handling
-  config.js           # ρυθμίσεις + firebaseConfig  ← πειράζεις μόνο αυτό
-  store.js            # δεδομένα: localStorage ή Firestore (realtime)
-  insights.js         # στατιστικά, ομαδοποίηση εργασιών, φίλτρα
-  cards.js            # κάρτες υποθέσεων / εργασιών
-  modal.js            # drawers & dialogs
-  toast.js            # μηνύματα
-  seed-data.js        # αρχικά δεδομένα από το αρχείο txt
-  utils.js            # βοηθητικές συναρτήσεις
-  view-dashboard.js   # προβολή Dashboard
-  view-properties.js  # προβολή Υποθέσεων
-  view-tasks.js       # προβολή Εκκρεμοτήτων
-  view-settings.js    # προβολή Ρυθμίσεων
-  view-detail.js      # καρτέλα υπόθεσης
-  view-form.js        # φόρμα προσθήκης/επεξεργασίας
-firebase/firestore.rules
+  app.js                  # hub: routing, launcher, κοινό περιβάλλον
+  home.js                 # οθόνη εκκίνησης με τις κάρτες εφαρμογών
+  config.js               # ρυθμίσεις + firebaseConfig
+  modal.js, toast.js, utils.js
+  core/db.js              # layer δεδομένων (Firestore ή localStorage) για όλα τα apps
+  # --- Εκκρεμείς Πωλήσεις ---
+  ekremis-app.js, store.js, insights.js, cards.js, seed-data.js
+  view-dashboard.js, view-properties.js, view-tasks.js, view-settings.js,
+  view-detail.js, view-form.js
+  # --- Ταμείο ---
+  tameio/app.js, store.js, insights.js, forms.js, constants.js,
+  office.js, view-dashboard.js, view-transactions.js, view-jobs.js,
+  view-people.js, view-reports.js, view-settings.js
+  # --- Τεχνικός Έλεγχος ---
+  texnikos/app.js, store.js, editor.js, presets.js, print.js, settings.js,
+  view-list.js, view-settings.js
 ```
+
+Κάθε αρχείο κρατιέται κάτω από ~1000 γραμμές για εύκολη συντήρηση.

@@ -1,88 +1,34 @@
-import * as store from "./store.js";
-import { subscribe, initStore } from "./store.js";
-import { openDrawer, closeDrawer, confirmDialog } from "./modal.js";
-import { toast } from "./toast.js";
-import { viewDashboard } from "./view-dashboard.js";
-import { viewProperties } from "./view-properties.js";
-import { viewTasks } from "./view-tasks.js";
-import { viewSettings } from "./view-settings.js";
-import { propertyDetailBody } from "./view-detail.js";
-import { propertyFormBody, bindForm, readPropertyForm } from "./view-form.js";
+// Κεντρικός hub: launcher, routing και κοινό περιβάλλον για όλες τις εφαρμογές.
+import { init as initDb, getState, subscribe } from "./core/db.js";
 import { appSettings } from "./config.js";
-import { allTasks, propertyUrgency } from "./insights.js";
-import { debounce, download, escapeHtml } from "./utils.js";
+import { debounce } from "./utils.js";
+import { renderHome } from "./home.js";
+import * as ekremis from "./ekremis-app.js";
+import * as tameio from "./tameio/app.js";
+import * as texnikos from "./texnikos/app.js";
 
-const LS_UI = "ekremis_ui_v1";
+const APPS = [ekremis, tameio, texnikos];
+const MODULES = Object.fromEntries(APPS.map((a) => [a.meta.id, a]));
 
-const ui = {
-  route: "dashboard",
-  query: "",
-  status: "all",
-  flag: "all",
-  sort: "urgency",
-  showDone: false,
-  theme: "light",
-};
+const COMING_SOON = [
+  { icon: "📢", title: "Αγγελίες (xe.gr)", tagline: "Διαχείριση αγγελιών, κλήσεων και προβολής" },
+  { icon: "✉️", title: "Email / Προσφορές", tagline: "Αυτόματες προτάσεις ακινήτων σε ενδιαφερόμενους" },
+  { icon: "📄", title: "Έντυπα & Εντολές", tagline: "Γεννήτρια εντύπων, εντολών και συμβολαίων" },
+];
 
+const LS_UI = "hub_ui_v1";
+const ui = { theme: "light", query: "" };
 try {
   Object.assign(ui, JSON.parse(localStorage.getItem(LS_UI) || "{}"));
 } catch {}
 
-function persistUi() {
-  localStorage.setItem(LS_UI, JSON.stringify({ theme: ui.theme, sort: ui.sort, showDone: ui.showDone }));
-}
-
-const ctxGetter = () => ({ state: store.getState(), ui, currency: appSettings.currency, readOnly: false });
-
-const VIEWS = {
-  dashboard: viewDashboard,
-  properties: viewProperties,
-  tasks: viewTasks,
-  settings: viewSettings,
-};
-
+let current = { appId: "home", sub: "" };
 const main = () => document.getElementById("main");
 
-function parseRoute() {
-  const h = (location.hash || "").replace(/^#\/?/, "");
-  const name = h.split("?")[0] || "dashboard";
-  return VIEWS[name] ? name : "dashboard";
-}
-
-function render() {
-  ui.route = parseRoute();
-  const view = VIEWS[ui.route];
-  main().innerHTML = view(ctxGetter());
-  document.querySelectorAll(".nav-item, .bn-item").forEach((el) => {
-    el.classList.toggle("active", el.dataset.route === ui.route);
-  });
-  updateChrome();
-}
-
-function updateChrome() {
-  const state = store.getState();
-  const tasks = allTasks(state.properties).filter((t) => !t.done);
-  const np = document.getElementById("nav-count-props");
-  const nt = document.getElementById("nav-count-tasks");
-  if (np) np.textContent = state.properties.length;
-  if (nt) nt.textContent = tasks.length;
-
-  const wrap = document.getElementById("sync-status");
-  const text = document.getElementById("sync-text");
-  if (!wrap || !text) return;
-  wrap.className = "sync-status";
-  if (!state.ready) {
-    text.textContent = "Φόρτωση…";
-  } else if (state.error) {
-    wrap.classList.add("error");
-    text.textContent = "Σφάλμα συγχρονισμού";
-  } else if (state.mode === "firebase") {
-    wrap.classList.add("online");
-    text.textContent = "Συγχρονισμένο (Firebase)";
-  } else {
-    wrap.classList.add("offline");
-    text.textContent = "Τοπική αποθήκευση";
-  }
+function persistUi() {
+  try {
+    localStorage.setItem(LS_UI, JSON.stringify({ theme: ui.theme }));
+  } catch {}
 }
 
 function applyTheme() {
@@ -91,281 +37,206 @@ function applyTheme() {
   if (meta) meta.setAttribute("content", ui.theme === "dark" ? "#0d1117" : "#1f6feb");
 }
 
-// ------------------------------- Drawers -----------------------------------
-let openDetailId = null;
-
-function mountDetail(root, id) {
-  const p = store.getProperty(id);
-  if (!p) return;
-  const header = root.querySelector(".drawer-head h2");
-  if (header) header.textContent = `${p.code ? p.code + " — " : ""}${p.title || "Υπόθεση"}`;
-  const body = root.querySelector(".drawer-body");
-  if (body) body.innerHTML = propertyDetailBody(p, ctxGetter());
-
-  root.querySelectorAll("[data-detail-toggle-task]").forEach((btn) => {
-    btn.addEventListener("click", () => toggleArrayItem(p.id, "tasks", Number(btn.dataset.detailToggleTask), "done"));
-  });
-  root.querySelectorAll("[data-detail-toggle-debt]").forEach((btn) => {
-    btn.addEventListener("click", () => toggleArrayItem(p.id, "debts", Number(btn.dataset.detailToggleDebt), "settled"));
-  });
+function parseRoute() {
+  const h = (location.hash || "").replace(/^#\/?/, "");
+  const [appId, ...rest] = h.split("/");
+  if (!appId || appId === "home") return { appId: "home", sub: "" };
+  const mod = MODULES[appId];
+  if (!mod) return { appId: "home", sub: "" };
+  return { appId, sub: rest.join("/") || mod.meta.defaultRoute };
 }
 
-function openDetail(id) {
-  const p = store.getProperty(id);
-  if (!p) return;
-  openDetailId = id;
-  openDrawer({
-    className: "detail-drawer",
-    title: `${p.code ? p.code + " — " : ""}${p.title || "Υπόθεση"}`,
-    body: propertyDetailBody(p, ctxGetter()),
-    footer: `
-      <button class="btn" data-detail-close>Κλείσιμο</button>
-      <span class="spacer"></span>
-      <button class="btn danger" data-detail-delete>🗑️</button>
-      <button class="btn primary" data-detail-edit>✏️ Επεξεργασία</button>`,
-    onMount(root) {
-      root.querySelector("[data-detail-close]").addEventListener("click", closeDrawer);
-      root.querySelector("[data-detail-edit]").onclick = () => openForm(p.id);
-      root.querySelector("[data-detail-delete]").onclick = async () => {
-        openDetailId = null;
-        const ok = await confirmDialog(`Να διαγραφεί οριστικά η υπόθεση «${p.title || p.code}»;`);
-        if (!ok) {
-          openDetailId = p.id;
-          return;
-        }
-        await store.deleteProperty(p.id);
-        toast("Η υπόθεση διαγράφηκε", "ok");
-      };
-      mountDetail(root, p.id);
-    },
-  });
+function activeModule() {
+  return MODULES[current.appId] || null;
 }
 
-async function toggleArrayItem(propId, group, index, key) {
-  const p = store.getProperty(propId);
-  if (!p || !Array.isArray(p[group]) || !p[group][index]) return;
-  const arr = p[group].map((item, i) => (i === index ? { ...item, [key]: !item[key] } : item));
-  await store.updateProperty(propId, { [group]: arr });
-}
-
-function openForm(id) {
-  openDetailId = null;
-  const isEdit = Boolean(id);
-  const p = isEdit ? store.getProperty(id) : store.emptyProperty();
-  if (!p) return;
-  openDrawer({
-    title: isEdit ? "Επεξεργασία υπόθεσης" : "Νέα υπόθεση",
-    body: propertyFormBody(p),
-    footer: `
-      <button class="btn" data-form-cancel>Άκυρο</button>
-      <span class="spacer"></span>
-      <button class="btn primary" data-form-save>💾 Αποθήκευση</button>`,
-    onMount(root) {
-      bindForm(root);
-      root.querySelector("[data-form-cancel]").addEventListener("click", closeDrawer);
-      root.querySelector("[data-form-save]").addEventListener("click", async () => {
-        const data = readPropertyForm(root);
-        if (!data.title && !data.code) {
-          toast("Συμπλήρωσε τουλάχιστον κωδικό ή τίτλο", "err");
-          return;
-        }
-        try {
-          if (isEdit) {
-            await store.updateProperty(id, data);
-            toast("Αποθηκεύτηκε", "ok");
-            closeDrawer();
-            openDetail(id);
-          } else {
-            const newId = await store.addProperty(data);
-            toast("Η υπόθεση προστέθηκε", "ok");
-            closeDrawer();
-            openDetail(newId);
-          }
-        } catch (e) {
-          toast("Σφάλμα αποθήκευσης: " + e.message, "err");
-        }
-      });
-    },
-  });
-}
-
-// ------------------------------- Actions -----------------------------------
-function importFile(replace) {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = "application/json,.json";
-  input.onchange = async () => {
-    const file = input.files[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      const list = Array.isArray(parsed) ? parsed : parsed.properties;
-      if (!Array.isArray(list)) throw new Error("Μη έγκυρο αρχείο");
-      if (replace) {
-        const ok = await confirmDialog("Να αντικατασταθούν όλες οι υποθέσεις με αυτές του αρχείου;", { confirmText: "Αντικατάσταση" });
-        if (!ok) return;
-      }
-      const n = await store.importProperties(list, { replace });
-      toast(`${n} υποθέσεις εισήχθησαν`, "ok");
-    } catch (e) {
-      toast("Αποτυχία εισαγωγής: " + e.message, "err");
-    }
+function ctx() {
+  return {
+    ui,
+    currency: appSettings.currency,
+    refresh: render,
+    go: (hash) => (location.hash = hash),
   };
-  input.click();
 }
 
-async function handleAction(action) {
-  switch (action) {
-    case "add":
-      openForm(null);
-      break;
-    case "export":
-      download(`ekkremis-poliseis-${new Date().toISOString().slice(0, 10)}.json`, store.exportJSON());
-      toast("Έγινε εξαγωγή", "ok");
-      break;
-    case "import-add":
-      importFile(false);
-      break;
-    case "import-replace":
-      importFile(true);
-      break;
-    case "reset-seed": {
-      const ok = await confirmDialog("Επαναφορά αρχικών δεδομένων; Οι τρέχουσες αλλαγές θα χαθούν.", { confirmText: "Επαναφορά" });
-      if (ok) {
-        await store.resetToSeed();
-        toast("Έγινε επαναφορά", "ok");
-      }
-      break;
-    }
-    case "clear-all": {
-      const ok = await confirmDialog("Διαγραφή ΟΛΩΝ των υποθέσεων; Δεν αναιρείται.", { confirmText: "Διαγραφή" });
-      if (ok) {
-        await store.clearAll();
-        toast("Διαγράφηκαν όλα", "ok");
-      }
-      break;
-    }
+function syncInfo() {
+  const s = getState();
+  if (!s.ready) return { text: "Φόρτωση…", cls: "" };
+  if (s.error) return { text: "Σφάλμα συγχρονισμού", cls: "error" };
+  if (s.mode === "firebase") return { text: "Συγχρονισμένο (Firebase)", cls: "online" };
+  return { text: "Τοπική αποθήκευση", cls: "offline" };
+}
+
+function navItemHTML(appId, item, isHome) {
+  const href = isHome ? "#/home" : `#/${appId}/${item.route}`;
+  const active = current.appId === appId && (isHome || current.sub === item.route);
+  const badge = item && item.badge ? `<span class="badge ${item.badgeWarn ? "warn" : ""}">${item.badge}</span>` : "";
+  return `<a class="nav-item ${active ? "active" : ""}" href="${href}">
+    <span class="ni">${item.icon}</span><span class="nav-label">${item.label}</span>${badge}
+  </a>`;
+}
+
+function renderNav() {
+  const sidebar = document.getElementById("app-nav");
+  const bottom = document.getElementById("bottom-nav");
+  const appNav = activeModule() ? activeModule().nav() : [];
+
+  const homeItem = { route: "home", label: "Αρχική", icon: "🏠" };
+  sidebar.innerHTML = [navItemHTML("home", homeItem, true), ...appNav.map((it) => navItemHTML(current.appId, it, false))].join("");
+
+  const bn = [homeItem, ...appNav].slice(0, 4);
+  bottom.innerHTML = bn
+    .map((it, i) => {
+      const isHome = i === 0;
+      const href = isHome ? "#/home" : `#/${current.appId}/${it.route}`;
+      const active = isHome ? current.appId === "home" : current.sub === it.route;
+      return `<a class="bn-item ${active ? "active" : ""}" href="${href}"><span>${it.icon}</span><em>${it.label}</em></a>`;
+    })
+    .join("");
+}
+
+function updateHeader() {
+  const mod = activeModule();
+  const brandName = document.getElementById("brand-name");
+  const brandSub = document.getElementById("brand-sub");
+  const search = document.querySelector(".search-wrap");
+  const addBtn = document.getElementById("btn-add");
+
+  if (current.appId === "home") {
+    brandName.textContent = appSettings.agencyName || "Γραφείο";
+    brandSub.textContent = "Κεντρικό μενού";
+    search.style.display = "none";
+    addBtn.style.display = "none";
+  } else {
+    brandName.textContent = mod.meta.title;
+    brandSub.textContent = "Αρχική";
+    search.style.display = "";
+    addBtn.style.display = "";
+    addBtn.querySelector(".only-desktop").textContent = " " + (mod.meta.primaryLabel || "Νέο");
   }
 }
 
+function render() {
+  current = parseRoute();
+  const sync = syncInfo();
+  const wrap = document.getElementById("sidebar-sync");
+  if (wrap) {
+    wrap.className = "sync-status " + sync.cls;
+    wrap.innerHTML = `<span class="dot"></span><span>${sync.text}</span>`;
+  }
+
+  if (current.appId === "home") {
+    renderHome(main(), APPS, {
+      agency: appSettings.agencyName,
+      syncText: sync.text,
+      syncClass: sync.cls,
+      comingSoon: COMING_SOON,
+    });
+  } else {
+    const mod = activeModule();
+    mod.render(main(), current.sub, ctx());
+    if (mod.onStoreChange && typeof mod.onStoreChange === "function") {
+      // called again from subscribe
+    }
+  }
+  renderNav();
+  updateHeader();
+}
+
 // ------------------------------- Events ------------------------------------
-function bindGlobalEvents() {
-  document.getElementById("btn-add").addEventListener("click", () => openForm(null));
+function bindEvents() {
   document.getElementById("btn-theme").addEventListener("click", () => {
     ui.theme = ui.theme === "dark" ? "light" : "dark";
     applyTheme();
     persistUi();
-    if (ui.route === "settings") render();
+    render();
+  });
+
+  document.getElementById("btn-add").addEventListener("click", () => {
+    const mod = activeModule();
+    if (mod && mod.onPrimary) mod.onPrimary(ctx());
   });
 
   const search = document.getElementById("global-search");
   search.addEventListener("input", debounce(() => {
     ui.query = search.value;
-    if (ui.route !== "properties") {
-      location.hash = "#/properties";
-    } else {
-      render();
-    }
-  }, 220));
+    if (current.appId === "home") return;
+    render();
+  }, 200));
 
   const menu = document.getElementById("btn-menu");
   const sidebar = document.getElementById("sidebar");
   const scrim = document.getElementById("scrim");
-  menu.addEventListener("click", () => {
-    sidebar.classList.add("open");
-    scrim.classList.add("show");
-  });
   const closeMenu = () => {
     sidebar.classList.remove("open");
     scrim.classList.remove("show");
   };
+  menu.addEventListener("click", () => {
+    sidebar.classList.add("open");
+    scrim.classList.add("show");
+  });
   scrim.addEventListener("click", closeMenu);
 
   window.addEventListener("hashchange", () => {
+    if (ui.query) {
+      ui.query = "";
+      search.value = "";
+    }
     closeMenu();
     render();
   });
 
-  document.getElementById("main").addEventListener("click", onMainClick);
-  document.getElementById("main").addEventListener("change", onMainChange);
-  document.getElementById("main").addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && e.target.classList.contains("card")) {
-      openDetail(e.target.dataset.open);
+  main().addEventListener("click", async (e) => {
+    const themeBtn = e.target.closest("[data-theme-set]");
+    if (themeBtn) {
+      ui.theme = themeBtn.dataset.themeSet;
+      applyTheme();
+      persistUi();
+      render();
+      return;
     }
+    const mod = activeModule();
+    if (mod) {
+      const handled = await mod.onClick(e, ctx());
+      if (handled) return;
+    }
+    const soon = e.target.closest(".app-card.soon");
+    if (soon) e.preventDefault();
   });
-}
-
-function onMainClick(e) {
-  const actionBtn = e.target.closest("[data-action]");
-  if (actionBtn) {
-    handleAction(actionBtn.dataset.action);
-    return;
-  }
-  const themeBtn = e.target.closest("[data-theme-set]");
-  if (themeBtn) {
-    ui.theme = themeBtn.dataset.themeSet;
-    applyTheme();
-    persistUi();
-    render();
-    return;
-  }
-  const statusChip = e.target.closest("[data-filter-status]");
-  if (statusChip) {
-    ui.status = statusChip.dataset.filterStatus;
-    render();
-    return;
-  }
-  const flagChip = e.target.closest("[data-filter-flag]");
-  if (flagChip) {
-    ui.flag = flagChip.dataset.filterFlag;
-    render();
-    return;
-  }
-  if (e.target.closest("[data-toggle-done]")) return;
-  const toggle = e.target.closest("[data-toggle-task]");
-  if (toggle) {
-    const row = toggle.closest("[data-task-prop]");
-    if (row) toggleArrayItem(row.dataset.taskProp, "tasks", Number(row.dataset.taskIndex), "done");
-    return;
-  }
-  const openEl = e.target.closest("[data-open]");
-  if (openEl) {
-    e.preventDefault();
-    openDetail(openEl.dataset.open);
-  }
-}
-
-function onMainChange(e) {
-  if (e.target.matches("[data-sort]")) {
-    ui.sort = e.target.value;
-    persistUi();
-    render();
-  } else if (e.target.matches("[data-toggle-done]")) {
-    ui.showDone = e.target.checked;
-    persistUi();
-    render();
-  }
+  main().addEventListener("change", (e) => {
+    const mod = activeModule();
+    if (mod && mod.onChange) mod.onChange(e, ctx());
+  });
+  main().addEventListener("keydown", (e) => {
+    const mod = activeModule();
+    if (mod && mod.onKeydown) mod.onKeydown(e, ctx());
+  });
 }
 
 // ------------------------------- Boot --------------------------------------
 async function boot() {
   applyTheme();
-  bindGlobalEvents();
-  document.getElementById("brand-name").textContent = "Εκκρεμείς Πωλήσεις";
-  document.getElementById("brand-sub").textContent = appSettings.agencyName;
+  bindEvents();
+  document.getElementById("brand-name").textContent = appSettings.agencyName || "Γραφείο";
+  document.getElementById("brand-sub").textContent = "Κεντρικό μενού";
 
   subscribe(() => {
-    if (!store.getState().ready) return;
+    const s = getState();
+    if (!s.ready) return;
     document.getElementById("loading")?.remove();
     render();
-    const modalRoot = document.getElementById("modal-root");
-    if (openDetailId && modalRoot && modalRoot.classList.contains("open") && modalRoot.querySelector(".detail-drawer")) {
-      mountDetail(modalRoot, openDetailId);
+    const mod = activeModule();
+    if (mod && mod.onStoreChange) mod.onStoreChange();
+    const wrap = document.getElementById("sidebar-sync");
+    const sync = syncInfo();
+    if (wrap) {
+      wrap.className = "sync-status " + sync.cls;
+      wrap.innerHTML = `<span class="dot"></span><span>${sync.text}</span>`;
     }
   });
 
-  await initStore();
+  if (!location.hash) location.hash = "#/home";
+  await initDb();
 }
 
 boot();
