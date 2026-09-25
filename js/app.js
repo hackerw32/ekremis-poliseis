@@ -9,13 +9,14 @@ import * as ekremis from "./ekremis-app.js";
 import * as tameio from "./tameio/app.js";
 import * as texnikos from "./texnikos/app.js";
 import * as leads from "./leads/app.js";
+import * as aggelies from "./aggelies/app.js";
 
-const APPS = [ekremis, tameio, texnikos, leads];
+const APPS = [ekremis, tameio, texnikos, leads, aggelies];
 const MODULES = Object.fromEntries(APPS.map((a) => [a.meta.id, a]));
 
 const COMING_SOON = [
-  { icon: "📢", title: "Αγγελίες (xe.gr)", tagline: "Διαχείριση αγγελιών, κλήσεων και προβολής" },
-  { icon: "✉️", title: "Email / Προσφορές", tagline: "Αυτόματες προτάσεις ακινήτων σε ενδιαφερόμενους" },
+  { icon: "👤", title: "Πελάτες", tagline: "Ενοποιημένη καρτέλα πελάτη από όλες τις εφαρμογές" },
+  { icon: "👷", title: "Συνεργάτες", tagline: "Υποχρεώσεις, συναλλαγές και στοιχεία συνεργατών" },
   { icon: "📄", title: "Έντυπα & Εντολές", tagline: "Γεννήτρια εντύπων, εντολών και συμβολαίων" },
 ];
 

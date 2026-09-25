@@ -1,67 +1,82 @@
 import { getOffice } from "../tameio/office.js";
-import { matchLine } from "./match.js";
 import { formatCurrency } from "../utils.js";
 
-function greeting(lead) {
-  return lead.name ? `Αγαπητέ/ή ${lead.name},` : "Καλησπέρα σας,";
+const GENITIVE = {
+  "Μονοκατοικία": "μονοκατοικίας",
+  "Διαμέρισμα": "διαμερίσματος",
+  "Διπλοκατοικία": "διπλοκατοικίας",
+  "Γκαρσονιέρα": "γκαρσονιέρας",
+  "Οικόπεδο": "οικοπέδου",
+  "Αγροτεμάχιο": "αγροτεμαχίου",
+  "Επαγγελματικός χώρος": "επαγγελματικού χώρου",
+};
+
+function firstName(lead) {
+  return (lead.name || "").trim().split(/\s+/)[0] || "κύριε/κυρία";
 }
 
-function criteria(lead) {
-  const parts = [];
-  if (lead.search_type) parts.push(lead.search_type);
-  if (lead.property_type) parts.push(lead.property_type);
-  if (lead.area) parts.push(lead.area);
-  if (lead.price_max) parts.push("έως " + formatCurrency(lead.price_max));
-  if (lead.sqm_min || lead.sqm_max) {
-    parts.push(`≈${lead.sqm_min || ""}${lead.sqm_max && lead.sqm_max !== lead.sqm_min ? "-" + lead.sqm_max : ""} τ.μ.`);
+function subjectType(lead) {
+  const src = lead.wants || "";
+  const stripped = String(src).replace(/αγορά|αγορα|ενοικίαση|ενοικιαση/gi, "").trim();
+  if (stripped) return stripped;
+  return GENITIVE[lead.property_type] || "ακινήτου";
+}
+
+function requestDescription(lead) {
+  let d = lead.wants || [lead.search_type, lead.property_type].filter(Boolean).join(" ");
+  if (!d) d = "ακίνητο";
+  if (lead.area) d += ` στη ${lead.area}`;
+  if (lead.price_max) d += ` έως ${formatCurrency(lead.price_max)}`;
+  if (lead.sqm_max || lead.sqm_min) {
+    const sqm = lead.sqm_min && lead.sqm_max && lead.sqm_min !== lead.sqm_max ? `${lead.sqm_min}-${lead.sqm_max}` : (lead.sqm_max || lead.sqm_min);
+    d += ` και ${sqm} τ.μ.`;
   }
-  return parts.join(" · ");
+  return d;
+}
+
+function adBlock(m) {
+  const p = m.property;
+  const bits = [];
+  if (Number(p.price)) bits.push(formatCurrency(p.price));
+  if (p.type) bits.push(p.type);
+  if (p.sqm) bits.push(`${p.sqm} τ.μ.`);
+  if (p.availability) bits.push(p.availability);
+  const head = `${p.code ? p.code + " — " : ""}${p.title || ""}`;
+  return `• ${head}${bits.length ? "\n   " + bits.join(" · ") : ""}`;
 }
 
 export function buildProposalEmail(lead, matches, currency = "EUR") {
   const o = getOffice();
   const n = matches.length;
+  const subject = `Πρόταση ${subjectType(lead)} σύμφωνα με τα κριτήριά σας`;
+  const phone = o.phone || "6977917523";
 
-  const subject = n === 1
-    ? "Πρόταση ακινήτου σύμφωνα με τα κριτήριά σας"
-    : "Προτάσεις ακινήτων σύμφωνα με τα κριτήριά σας";
+  let proposalText;
+  if (n === 1) proposalText = "μία διαθέσιμη επιλογή που βρίσκεται πολύ κοντά στα κριτήριά σας:";
+  else if (n === 2) proposalText = "δύο διαθέσιμες επιλογές που βρίσκονται πολύ κοντά στα κριτήριά σας:";
+  else proposalText = "τις παρακάτω διαθέσιμες επιλογές που βρίσκονται πολύ κοντά στα κριτήριά σας:";
 
-  let intro;
-  if (n === 0) {
-    intro = "Σχετικά με την αναζήτησή σας, αυτή τη στιγμή δεν υπάρχει διαθέσιμο ακίνητο που να ταιριάζει απόλυτα στα κριτήριά σας. Θα σας ενημερώσουμε άμεσα μόλις προκύψει κάτι νέο.";
-  } else if (n === 1) {
-    intro = "Σχετικά με την αναζήτησή σας, εντοπίσαμε ένα ακίνητο που πιστεύουμε ότι ταιριάζει στα κριτήριά σας:";
-  } else if (n === 2) {
-    intro = "Σχετικά με την αναζήτησή σας, εντοπίσαμε δύο ακίνητα που ταιριάζουν στα κριτήριά σας:";
-  } else {
-    intro = "Σχετικά με την αναζήτησή σας, εντοπίσαμε τις παρακάτω προτάσεις που ταιριάζουν στα κριτήριά σας:";
-  }
+  const ads = matches.map(adBlock).join("\n\n");
 
-  const lines = matches.map((m) => matchLine(m, currency)).join("\n");
-  const crit = criteria(lead);
+  const lines = [
+    `Καλησπέρα σας ${firstName(lead)},`,
+    "",
+    "Σας ευχαριστώ για τη συμπλήρωση της φόρμας και το ενδιαφέρον σας.",
+    "",
+    `Με βάση το αίτημά σας (${requestDescription(lead)}), σας προτείνω ${proposalText}`,
+    "",
+    ads,
+    "",
+    `Τηλέφωνο επικοινωνίας για τα παραπάνω ακίνητα: ${phone}`,
+    "",
+    "Αν ενδιαφέρεστε, μπορείτε να επικοινωνήσετε για ραντεβού ή για περισσότερες επιλογές που ταιριάζουν στα κριτήριά σας.",
+    "",
+    "Με εκτίμηση,",
+    o.name || "Τεχνικό & Μεσιτικό Γραφείο",
+    o.owner || "",
+  ];
 
-  const parts = [];
-  parts.push(greeting(lead));
-  parts.push("");
-  parts.push(intro);
-  if (n > 0) {
-    parts.push("");
-    parts.push(lines);
-    parts.push("");
-    parts.push("Για περισσότερες πληροφορίες ή για να κανονίσουμε επίσκεψη, μπορείτε να απαντήσετε στο email ή να μας καλέσετε.");
-  }
-  parts.push("");
-  parts.push("Με εκτίμηση,");
-  parts.push(o.name || "Τεχνικό & Μεσιτικό Γραφείο");
-  if (o.owner) parts.push(o.owner);
-  if (o.phone) parts.push("Τηλ: " + o.phone);
-  if (o.email) parts.push("Email: " + o.email);
-  if (crit) {
-    parts.push("");
-    parts.push("(Κριτήριά σας: " + crit + ")");
-  }
-
-  return { to: lead.email || "", subject, body: parts.join("\n") };
+  return { to: lead.email || "", subject, body: lines.join("\n") };
 }
 
 export function mailtoLink(email, subject, body) {

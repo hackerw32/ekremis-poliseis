@@ -22,6 +22,10 @@ export function emptyLead() {
     status: "Νέο",
     source: "Χειροκίνητη",
     notes: "",
+    proposal_sent: false,
+    proposal_sent_at: "",
+    proposal_count: 0,
+    last_contact: "",
   };
 }
 
@@ -57,6 +61,17 @@ export function leadsJSON() {
 
 function dedupeKey(l) {
   return `${(l.phone || "").replace(/\D/g, "")}|${(l.email || "").toLowerCase()}|${(l.wants || "").toLowerCase()}`;
+}
+
+export function leadKey(l) {
+  return dedupeKey(l);
+}
+
+export async function markProposals(ids, fields) {
+  for (const id of ids) {
+    // eslint-disable-next-line no-await-in-loop
+    await db.update(COL, id, fields);
+  }
 }
 
 export async function importLeads(leads, { replace = false } = {}) {

@@ -14,6 +14,7 @@ export const COLLECTIONS = {
   tameio_transactions: { seed: [] },
   texnikos_docs: { seed: [] },
   leads: { seed: [] },
+  listings: { seed: [] },
 };
 
 const LS = "hub_v1_";

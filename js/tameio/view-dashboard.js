@@ -42,7 +42,7 @@ export function viewDashboard(ctx) {
 
   return `
     <div class="view-head">
-      <div><h1>Ταμείο — Αρχική</h1><p>Εικόνα του ταμείου και των εκκρεμών ποσών</p></div>
+      <div><h1>Dashboard</h1><p>Εικόνα του ταμείου και των εκκρεμών ποσών</p></div>
       <div class="pill-row">
         <button class="btn" data-tameio-action="add-txn-income">＋ Είσπραξη</button>
         <button class="btn primary" data-tameio-action="add-txn-expense">＋ Πληρωμή</button>

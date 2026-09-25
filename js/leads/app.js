@@ -17,7 +17,18 @@ export const meta = {
   primaryLabel: "Νέος ενδιαφερόμενος",
 };
 
-const ui = { search_type: "", status: "", pending: [], sheetUrl: "", message: "" };
+const SHEET_KEY = "leads_sheet_url";
+const ui = {
+  search_type: "",
+  status: "",
+  proposal: "",
+  pending: [],
+  sheetUrl: "",
+  message: "",
+  selected: [],
+  newLeads: [],
+  newCount: 0,
+};
 
 export function nav() {
   return [
@@ -29,6 +40,7 @@ export function nav() {
 export function render(container, subroute, ctx) {
   const c = { ui: { query: ctx.ui.query }, leads: ui, currency: ctx.currency };
   container.innerHTML = subroute === "import" ? viewImport(c) : viewLeads(c);
+  if (subroute !== "import") checkForNew();
 }
 
 export function onPrimary() {
@@ -39,11 +51,42 @@ function refresh() {
   document.dispatchEvent(new CustomEvent("hub:refresh"));
 }
 
+function sheetUrlToCsv(raw) {
+  if (/output=csv|tqx=out:csv/.test(raw)) return raw;
+  const m = raw.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  const id = m ? m[1] : raw;
+  if (!/^[a-zA-Z0-9-_]{20,}$/.test(id)) throw new Error("Μη έγκυρο link/ID φύλλου");
+  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv`;
+}
+
 function finishParse(text) {
   const leads = dedupeLeads(parseLeads(text));
   ui.pending = leads;
   ui.message = leads.length ? `Αναλύθηκαν ${leads.length} εγγραφές (χωρίς διπλότυπα).` : "Δεν βρέθηκαν έγκυρες εγγραφές.";
   refresh();
+}
+
+let lastCheck = 0;
+async function checkForNew() {
+  const raw = ui.sheetUrl || localStorage.getItem(SHEET_KEY) || "";
+  if (!raw) return;
+  const now = Date.now();
+  if (now - lastCheck < 30000) return;
+  lastCheck = now;
+  try {
+    const res = await fetch(sheetUrlToCsv(raw));
+    if (!res.ok) return;
+    const leads = dedupeLeads(parseLeads(await res.text()));
+    const existing = new Set(store.listLeads().map(store.leadKey));
+    const fresh = leads.filter((l) => !existing.has(store.leadKey(l)));
+    if (fresh.length !== ui.newCount || fresh.length) {
+      ui.newLeads = fresh;
+      ui.newCount = fresh.length;
+      if (fresh.length) refresh();
+    }
+  } catch {
+    /* σιωπηλά — πιθανό CORS ή μη κοινόχρηστο φύλλο */
+  }
 }
 
 async function loadXLSX() {
@@ -62,6 +105,8 @@ function pickFile() {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = ".csv,.xlsx,.xls,text/csv";
+  input.style.display = "none";
+  document.body.appendChild(input);
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
@@ -78,6 +123,8 @@ function pickFile() {
       finishParse(text);
     } catch (e) {
       toast("Αποτυχία ανάγνωσης: " + e.message, "err");
+    } finally {
+      input.remove();
     }
   };
   input.click();
@@ -88,15 +135,9 @@ async function fetchSheet() {
   const raw = el ? el.value.trim() : "";
   ui.sheetUrl = raw;
   if (!raw) return toast("Βάλε το link του φύλλου", "err");
-  let url = raw;
-  if (!/output=csv|tqx=out:csv/.test(raw)) {
-    const m = raw.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    const id = m ? m[1] : raw;
-    if (!/^[a-zA-Z0-9-_]{20,}$/.test(id)) return toast("Μη έγκυρο link/ID φύλλου", "err");
-    url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv`;
-  }
+  localStorage.setItem(SHEET_KEY, raw);
   try {
-    const res = await fetch(url);
+    const res = await fetch(sheetUrlToCsv(raw));
     if (!res.ok) throw new Error("HTTP " + res.status);
     finishParse(await res.text());
   } catch (e) {
@@ -106,7 +147,19 @@ async function fetchSheet() {
   }
 }
 
-async function handleAction(action, el) {
+async function bulkDelete() {
+  const ok = await confirmDialog(`Να διαγραφούν ${ui.selected.length} ενδιαφερόμενοι;`, { confirmText: "Διαγραφή" });
+  if (!ok) return;
+  for (const id of ui.selected) {
+    // eslint-disable-next-line no-await-in-loop
+    await store.removeLead(id);
+  }
+  ui.selected = [];
+  ui.message = "Διαγράφηκαν.";
+  refresh();
+}
+
+async function handleAction(action) {
   switch (action) {
     case "add":
       openLeadForm(null);
@@ -145,6 +198,52 @@ async function handleAction(action, el) {
       ui.message = "";
       refresh();
       break;
+    case "import-new": {
+      const n = await store.importLeads(ui.newLeads, { replace: false });
+      ui.newLeads = [];
+      ui.newCount = 0;
+      ui.message = `Εισήχθησαν ${n} νέα αιτήματα.`;
+      toast(`Εισήχθησαν ${n} νέα`, "ok");
+      refresh();
+      break;
+    }
+    case "dismiss-new":
+      ui.newCount = 0;
+      ui.newLeads = [];
+      refresh();
+      break;
+    case "bulk-proposal": {
+      const n = ui.selected.length;
+      await store.markProposals(ui.selected, { proposal_sent: true, proposal_sent_at: new Date().toISOString(), status: "Σε επικοινωνία" });
+      ui.selected = [];
+      ui.message = `Σημειώθηκαν ${n} ως «στάλθηκε πρόταση».`;
+      toast("Ενημερώθηκαν", "ok");
+      refresh();
+      break;
+    }
+    case "bulk-served": {
+      const n = ui.selected.length;
+      await store.markProposals(ui.selected, { status: "Ολοκληρώθηκε" });
+      ui.selected = [];
+      ui.message = `Σημειώθηκαν ${n} ως «εξυπηρετήθηκαν».`;
+      toast("Ενημερώθηκαν", "ok");
+      refresh();
+      break;
+    }
+    case "bulk-new": {
+      await store.markProposals(ui.selected, { status: "Νέο" });
+      ui.selected = [];
+      ui.message = "Επαναφέρθηκαν σε «Νέο».";
+      refresh();
+      break;
+    }
+    case "bulk-delete":
+      await bulkDelete();
+      break;
+    case "bulk-clear":
+      ui.selected = [];
+      refresh();
+      break;
     case "export":
       download(`endiaferomenoi-${todayISO()}.json`, store.leadsJSON());
       toast("Έγινε εξαγωγή", "ok");
@@ -160,10 +259,23 @@ async function handleAction(action, el) {
   }
 }
 
+function toggleSelect(id, checked) {
+  const s = new Set(ui.selected);
+  if (checked) s.add(id);
+  else s.delete(id);
+  ui.selected = [...s];
+}
+
 export async function onClick(e, ctx) {
+  const check = e.target.closest("[data-lead-select]");
+  if (check) {
+    toggleSelect(check.dataset.id, check.checked);
+    ctx.refresh();
+    return true;
+  }
   const actionEl = e.target.closest("[data-lead-action]");
   if (actionEl) {
-    await handleAction(actionEl.dataset.leadAction, actionEl);
+    await handleAction(actionEl.dataset.leadAction);
     return true;
   }
   const filter = e.target.closest("[data-lead-filter]");

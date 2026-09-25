@@ -6,6 +6,7 @@ import { buildProposalEmail, mailtoLink } from "./email.js";
 import { openDrawer, closeDrawer, confirmDialog } from "../modal.js";
 import { toast } from "../toast.js";
 import * as db from "../core/db.js";
+import { catalog } from "../aggelies/store.js";
 import { formatCurrency, escapeHtml, formatDate } from "../utils.js";
 
 const get = (root, k) => {
@@ -25,8 +26,8 @@ function statusPill(s) {
   return `<span class="pill ${map[s] || "st-akyro"}">${escapeHtml(s || "—")}</span>`;
 }
 
-function properties() {
-  return db.list("properties");
+function catalogItems() {
+  return catalog(db.list("properties"));
 }
 
 // ------------------------------ FORM ---------------------------------------
@@ -86,7 +87,7 @@ export function openLeadForm(lead) {
 export function openLeadDetail(lead) {
   const l = store.getLead(lead.id) || lead;
   const cur = "EUR";
-  const matches = matchLead(l, properties(), { minScore: 30, limit: 10 });
+  const matches = matchLead(l, catalogItems(), { minScore: 30, limit: 10 });
 
   const matchRows = matches.length
     ? matches.map((m, i) => {
@@ -220,6 +221,12 @@ export function openEmailModal(lead, matches) {
         const { to: t, subject: s, body: b } = read();
         if (!t) return toast("Συμπλήρωσε email παραλήπτη", "err");
         window.open(mailtoLink(t, s, b), "_blank");
+        store.updateLead(lead.id, {
+          proposal_sent: true,
+          proposal_sent_at: new Date().toISOString(),
+          proposal_count: (lead.proposal_count || 0) + 1,
+          status: lead.status === "Νέο" ? "Σε επικοινωνία" : lead.status,
+        }).catch(() => {});
       };
     },
   });
