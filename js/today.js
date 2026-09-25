@@ -57,6 +57,7 @@ export function renderToday(container, ctx) {
           <span class="card-code">${escapeHtml(j.protocol_number || "—")}</span>
           <span class="d-label">${escapeHtml(j.title || "")} <span class="text-muted">→ ${escapeHtml(j.partner_name || "")}</span></span>
           <span class="d-amt text-danger">${formatCurrency(j.pending, cur)}</span>
+          <button class="mini-btn" data-pay-job="${escapeHtml(j.id)}" title="Καταχώρηση πληρωμής">✔ Πληρώθηκε</button>
         </div>`).join("")
     : '<div class="text-muted" style="padding:8px 0">Καθόλου οφειλές 🎉</div>';
 

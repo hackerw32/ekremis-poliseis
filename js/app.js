@@ -14,7 +14,8 @@ import { makeApp } from "./contacts/app.js";
 import { renderToday } from "./today.js";
 import { openGlobalSearch } from "./search.js";
 import { openJobDetail } from "./tameio/forms.js";
-import { jobs as getJobs } from "./tameio/store.js";
+import { jobs as getJobs, jobsWithMetrics as getJobsWithMetrics } from "./tameio/store.js";
+import { settlePartner } from "./tameio/settle.js";
 
 const clientsApp = makeApp("client");
 const partnersApp = makeApp("partner");
@@ -233,6 +234,15 @@ function bindEvents() {
   main().addEventListener("click", async (e) => {
     if (e.target.closest('[data-hub-action="logout"]')) {
       signOutUser().catch((err) => console.warn(err));
+      return;
+    }
+    const pay = e.target.closest("[data-pay-job]");
+    if (pay) {
+      const j = getJobs().find((x) => x.id === pay.dataset.payJob);
+      if (j) {
+        const withMetrics = getJobsWithMetrics().find((x) => x.id === j.id) || j;
+        settlePartner(withMetrics);
+      }
       return;
     }
     const tj = e.target.closest("[data-today-job]");

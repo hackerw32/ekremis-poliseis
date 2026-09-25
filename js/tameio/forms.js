@@ -1,6 +1,7 @@
 import * as store from "./store.js";
 import { openDrawer, closeDrawer, confirmDialog } from "../modal.js";
 import { toast } from "../toast.js";
+import { settlePartner, settleClient } from "./settle.js";
 import { PAYMENT_METHODS, INCOME_CATEGORIES, EXPENSE_CATEGORIES, JOB_STATUSES, SPECIALTIES } from "./constants.js";
 import { formatCurrency, formatDate, todayISO, escapeHtml } from "../utils.js";
 
@@ -252,6 +253,11 @@ export function openJobDetail(job) {
       <div class="pill-row" style="margin-bottom:14px">
         <span class="pill ${j.status === "Ολοκληρώθηκε" ? "st-ok" : "st-anamoni"}">${escapeHtml(j.status || "")}</span>
       </div>
+      ${(j.client_pending > 0.004 || j.partner_pending > 0.004) ? `
+      <div class="pill-row" style="margin-bottom:14px">
+        ${j.client_pending > 0.004 ? `<button class="btn primary" data-settle-client>✅ Εισπράχθηκαν ${formatCurrency(j.client_pending)}</button>` : ""}
+        ${j.partner_pending > 0.004 ? `<button class="btn primary" data-settle-partner>✅ Πληρώθηκε ${formatCurrency(j.partner_pending)}</button>` : ""}
+      </div>` : '<div class="pill-row" style="margin-bottom:14px"><span class="pill st-ok">✅ Τακτοποιημένη</span></div>'}
       <div class="info-block"><div class="kv">
         <span class="k">Ιδιοκτήτης</span><span class="v">${escapeHtml(j.owner || "—")}</span>
         <span class="k">Τοποθεσία</span><span class="v">${escapeHtml(j.location || "—")}</span>
@@ -278,6 +284,10 @@ export function openJobDetail(job) {
       root.querySelector("[data-close]").addEventListener("click", closeDrawer);
       root.querySelector("[data-edit]").onclick = () => openJobForm(j);
       root.querySelector("[data-income]").onclick = () => openTransactionForm({ type: "Έσοδο", jobId: j.id, clientId: j.client_id });
+      const sp = root.querySelector("[data-settle-partner]");
+      if (sp) sp.addEventListener("click", async () => { if (await settlePartner(j)) closeDrawer(); });
+      const sc = root.querySelector("[data-settle-client]");
+      if (sc) sc.addEventListener("click", async () => { if (await settleClient(j)) closeDrawer(); });
       root.querySelector("[data-del]").onclick = async () => {
         const ok = await confirmDialog(`Να διαγραφεί η υπόθεση «${j.title || j.protocol_number}»;`);
         if (!ok) return;
