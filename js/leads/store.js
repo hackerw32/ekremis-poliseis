@@ -68,7 +68,7 @@ export function leadKey(l) {
 }
 
 export async function markProposals(ids, fields) {
-  for (const id of ids) {
+  for (const id of (ids || []).filter(Boolean)) {
     // eslint-disable-next-line no-await-in-loop
     await db.update(COL, id, fields);
   }

@@ -260,6 +260,7 @@ async function handleAction(action) {
 }
 
 function toggleSelect(id, checked) {
+  if (!id) return;
   const s = new Set(ui.selected);
   if (checked) s.add(id);
   else s.delete(id);
@@ -269,7 +270,7 @@ function toggleSelect(id, checked) {
 export async function onClick(e, ctx) {
   const check = e.target.closest("[data-lead-select]");
   if (check) {
-    toggleSelect(check.dataset.id, check.checked);
+    toggleSelect(check.dataset.leadSelect, check.checked);
     ctx.refresh();
     return true;
   }
