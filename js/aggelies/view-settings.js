@@ -12,7 +12,8 @@ export function viewSettings(ctx) {
       <div class="panel-body">
         <p class="text-muted" style="margin-top:0">Δέχεται <b>JSON</b> (π.χ. το backup του xe.gr) ή <b>CSV/Excel</b> με στήλες: Κωδικός, Τύπος, τ.μ., Τιμή, Διεύθυνση, Τηλέφωνο, Κατάσταση, Σημειώσεις.</p>
         <div class="pill-row">
-          <button class="btn primary" data-agg-action="pick-file">📎 Επιλογή αρχείου (JSON / CSV / Excel)</button>
+          <button class="btn primary" data-agg-action="pick-file">📎 Προσθήκη από αρχείο (JSON / CSV / Excel)</button>
+          <button class="btn danger" data-agg-action="pick-file-replace">♻️ Αντικατάσταση όλων</button>
         </div>
         ${f.message ? `<div class="note-box" style="margin-top:12px">${escapeHtml(f.message)}</div>` : ""}
       </div>

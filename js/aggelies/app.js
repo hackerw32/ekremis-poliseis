@@ -113,7 +113,7 @@ async function loadXLSX() {
   return window.XLSX;
 }
 
-function pickFile() {
+function pickFile(replace = false) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = ".json,.csv,.xlsx,.xls";
@@ -131,9 +131,11 @@ function pickFile() {
       } else {
         records = parseListingsText(await file.text());
       }
-      const n = await store.importListings(records, { replace: false });
-      ui.message = `Εισήχθησαν ${n} νέες αγγελίες (τα διπλότυπα παραλείφθηκαν).`;
-      toast(`Εισήχθησαν ${n}`, "ok");
+      const n = await store.importListings(records, { replace });
+      ui.message = replace
+        ? `Αντικαταστάθηκαν όλες οι αγγελίες με ${n} εγγραφές.`
+        : `Εισήχθησαν ${n} νέες αγγελίες (τα διπλότυπα παραλείφθηκαν).`;
+      toast(replace ? `Αντικαταστάθηκαν ${n}` : `Εισήχθησαν ${n}`, "ok");
       document.dispatchEvent(new CustomEvent("hub:refresh"));
     } catch (e) {
       toast("Αποτυχία εισαγωγής: " + e.message, "err");
@@ -150,7 +152,10 @@ async function handleAction(action) {
       openListingForm(null);
       break;
     case "pick-file":
-      pickFile();
+      pickFile(false);
+      break;
+    case "pick-file-replace":
+      pickFile(true);
       break;
     case "export":
       download(`aggelies-${todayISO()}.json`, store.listingsJSON());
