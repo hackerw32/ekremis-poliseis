@@ -73,6 +73,19 @@ export function makeApp(kind) {
           closeDrawer();
           toast("Διαγράφηκε", "ok");
         };
+        root.querySelectorAll("[data-person-action]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const act = btn.dataset.personAction;
+            if (act === "pay") openTransactionForm({ type: "Έξοδο", partnerId: id });
+            else if (act === "collect") openTransactionForm({ type: "Έσοδο", clientId: id });
+            else if (act === "new-job") {
+              const preset = isPartner
+                ? { protocol_number: "", title: "", owner: "", location: "", client_id: "", partner_id: id, agreed_fee: 0, partner_fee: 0, status: "Εκκρεμεί", opened_date: "", notes: "" }
+                : { protocol_number: "", title: "", owner: "", location: "", client_id: id, partner_id: "", agreed_fee: 0, partner_fee: 0, status: "Εκκρεμεί", opened_date: "", notes: "" };
+              openJobForm(preset);
+            }
+          });
+        });
       },
     });
   }

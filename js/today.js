@@ -50,10 +50,10 @@ export function renderToday(container, ctx) {
       <span class="d-amt text-muted" style="font-weight:500;font-size:12px">${escapeHtml(l.search_type || "")} ${escapeHtml(l.property_type || "")}</span>
     </div>`).join("") || '<div class="text-muted" style="padding:8px 0">Κανένα νέο αίτημα</div>';
 
-  const obligations = contacts.allObligations("partner").slice(0, 6);
+  const obligations = contacts.allObligations("partner").slice(0, 8);
   const obligationsHtml = obligations.length
     ? obligations.map((j) => `
-        <div class="debt">
+        <div class="debt" data-today-job="${escapeHtml(j.id)}" style="cursor:pointer">
           <span class="card-code">${escapeHtml(j.protocol_number || "—")}</span>
           <span class="d-label">${escapeHtml(j.title || "")} <span class="text-muted">→ ${escapeHtml(j.partner_name || "")}</span></span>
           <span class="d-amt text-danger">${formatCurrency(j.pending, cur)}</span>
@@ -62,7 +62,7 @@ export function renderToday(container, ctx) {
 
   container.innerHTML = `
     <div class="view-head">
-      <div><h1>Σήμερα</h1><p>${new Date().toLocaleDateString("el-GR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p></div>
+      <div><h1>Επισκόπηση</h1><p>${new Date().toLocaleDateString("el-GR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p></div>
       <div class="pill-row">
         <a class="btn" href="#/leads/list">🎯 Ενδιαφερόμενοι</a>
         <a class="btn" href="#/aggelies/list">📢 Αγγελίες</a>

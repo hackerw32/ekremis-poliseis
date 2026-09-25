@@ -115,13 +115,26 @@ export function openJobForm(job) {
         <div class="field"><label>Τοποθεσία</label><input class="input" data-field="location" value="${escapeHtml(j.location)}" /></div>
         <div class="field"><label>Πελάτης</label><select class="select" data-field="client_id">${opt(clientOpts, j.client_id, "—")}</select></div>
         <div class="field"><label>Συνεργάτης</label><select class="select" data-field="partner_id">${opt(partnerOpts, j.partner_id, "—")}</select></div>
-        <div class="field"><label>Συμφωνημένο ποσό (€)</label><input class="input" type="number" data-field="agreed_fee" value="${escapeHtml(j.agreed_fee)}" /></div>
-        <div class="field"><label>Αμοιβή συνεργάτη (€)</label><input class="input" type="number" data-field="partner_fee" value="${escapeHtml(j.partner_fee)}" /></div>
+        <div class="field"><label>Παίρνουμε από πελάτη (€)</label><input class="input" type="number" data-field="agreed_fee" value="${escapeHtml(j.agreed_fee)}" /></div>
+        <div class="field"><label>Δίνουμε σε συνεργάτη (€)</label><input class="input" type="number" data-field="partner_fee" value="${escapeHtml(j.partner_fee)}" /></div>
+        <div class="field full"><label>Καθαρό γραφείο</label><div class="net-box" data-net>—</div></div>
         <div class="field"><label>Ημ/νία έναρξης</label><input class="input" type="date" data-field="opened_date" value="${escapeHtml(j.opened_date)}" /></div>
         <div class="field full"><label>Σημειώσεις</label><textarea class="textarea" rows="3" data-field="notes">${escapeHtml(j.notes)}</textarea></div>
       </div>`,
     footer: footer(),
     onMount(root) {
+      const agreedEl = root.querySelector('[data-field="agreed_fee"]');
+      const partnerEl = root.querySelector('[data-field="partner_fee"]');
+      const netEl = root.querySelector("[data-net]");
+      const updNet = () => {
+        const a = Number(agreedEl.value) || 0;
+        const p = Number(partnerEl.value) || 0;
+        netEl.textContent = `${(a - p).toLocaleString("el-GR")} €   ( παίρνουμε ${a.toLocaleString("el-GR")} − δίνουμε ${p.toLocaleString("el-GR")} )`;
+      };
+      agreedEl.addEventListener("input", updNet);
+      partnerEl.addEventListener("input", updNet);
+      updNet();
+
       bindFooter(root, async () => {
         const data = {
           protocol_number: get(root, "protocol_number"),
@@ -244,12 +257,13 @@ export function openJobDetail(job) {
         <span class="k">Τοποθεσία</span><span class="v">${escapeHtml(j.location || "—")}</span>
         <span class="k">Πελάτης</span><span class="v">${escapeHtml(j.client_name || "—")}</span>
         <span class="k">Συνεργάτης</span><span class="v">${escapeHtml(j.partner_name || "—")}</span>
-        <span class="k">Συμφωνημένο</span><span class="v">${formatCurrency(j.agreed_fee)}</span>
-        <span class="k">Εισπράχθηκαν</span><span class="v">${formatCurrency(j.received)}</span>
-        <span class="k">Από πελάτη</span><span class="v">${formatCurrency(j.client_pending)}</span>
-        <span class="k">Αμοιβή συνεργάτη</span><span class="v">${formatCurrency(j.partner_fee)}</span>
-        <span class="k">Πληρώθηκαν</span><span class="v">${formatCurrency(j.partner_paid)}</span>
-        <span class="k">Σε συνεργάτη</span><span class="v">${formatCurrency(j.partner_pending)}</span>
+        <span class="k">Παίρνουμε από πελάτη</span><span class="v">${formatCurrency(j.agreed_fee)}</span>
+        <span class="k">Έχουμε εισπράξει</span><span class="v">${formatCurrency(j.received)}</span>
+        <span class="k">Να εισπράξουμε</span><span class="v">${formatCurrency(j.client_pending)}</span>
+        <span class="k">Δίνουμε σε συνεργάτη</span><span class="v">${formatCurrency(j.partner_fee)}</span>
+        <span class="k">Έχουμε πληρώσει</span><span class="v">${formatCurrency(j.partner_paid)}</span>
+        <span class="k">Να πληρώσουμε</span><span class="v text-danger">${formatCurrency(j.partner_pending)}</span>
+        <span class="k">Καθαρό γραφείο</span><span class="v">${formatCurrency((Number(j.agreed_fee) || 0) - (Number(j.partner_fee) || 0))}</span>
       </div></div>
       ${j.notes ? `<div class="sec-title">Σημειώσεις</div><div class="notes-box">${escapeHtml(j.notes)}</div>` : ""}
       <div class="sec-title">Κινήσεις υπόθεσης</div>

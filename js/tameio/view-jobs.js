@@ -28,10 +28,11 @@ export function viewJobs(ctx) {
             ${j.partner_name ? `<div class="row"><span class="k">Συνεργάτης</span><span class="v">${escapeHtml(j.partner_name)}</span></div>` : ""}
           </div>
           <div class="tags">
-            <span class="tag-mini">Συμφωνήθηκε ${formatCurrency(j.agreed_fee, cur)}</span>
-            <span class="tag-mini">Εισπράχθηκαν ${formatCurrency(j.received, cur)}</span>
-            ${j.client_pending > 0.004 ? `<span class="tag-mini" style="background:var(--purple-soft);color:var(--purple)">Από πελάτη: ${formatCurrency(j.client_pending, cur)}</span>` : ""}
-            ${j.partner_pending > 0.004 ? `<span class="tag-mini" style="background:var(--danger-soft);color:var(--danger)">Σε συνεργάτη: ${formatCurrency(j.partner_pending, cur)}</span>` : ""}
+            <span class="tag-mini">Παίρνουμε ${formatCurrency(j.agreed_fee, cur)}</span>
+            <span class="tag-mini">Δίνουμε ${formatCurrency(j.partner_fee, cur)}</span>
+            <span class="tag-mini" style="background:var(--success-soft);color:var(--success)">Καθαρό ${formatCurrency((Number(j.agreed_fee) || 0) - (Number(j.partner_fee) || 0), cur)}</span>
+            ${j.client_pending > 0.004 ? `<span class="tag-mini" style="background:var(--purple-soft);color:var(--purple)">Να εισπράξουμε: ${formatCurrency(j.client_pending, cur)}</span>` : ""}
+            ${j.partner_pending > 0.004 ? `<span class="tag-mini" style="background:var(--danger-soft);color:var(--danger)">Να πληρώσουμε: ${formatCurrency(j.partner_pending, cur)}</span>` : ""}
           </div>
           <div class="card-foot">
             <div class="pill-row">

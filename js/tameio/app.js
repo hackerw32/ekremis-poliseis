@@ -14,7 +14,7 @@ import { download, formatCurrency, escapeHtml, todayISO } from "../utils.js";
 
 export const meta = {
   id: "tameio",
-  title: "Dashboard",
+  title: "Οικονομικά",
   icon: "💰",
   tagline: "Έσοδα, έξοδα, υποθέσεις (Α/Π) και υπόλοιπα πελατών/συνεργατών",
   color: "success",
@@ -54,7 +54,7 @@ export function nav() {
     else s.expense += a;
   });
   return [
-    { route: "dashboard", label: "Dashboard", icon: "📊" },
+    { route: "dashboard", label: "Σύνοψη", icon: "📊" },
     { route: "transactions", label: "Συναλλαγές", icon: "🧾", badge: store.transactions().length },
     { route: "jobs", label: "Υποθέσεις", icon: "📁", badge: store.jobs().length },
     { route: "people", label: "Πελάτες/Συνεργάτες", icon: "👥" },

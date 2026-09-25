@@ -13,6 +13,8 @@ import * as aggelies from "./aggelies/app.js";
 import { makeApp } from "./contacts/app.js";
 import { renderToday } from "./today.js";
 import { openGlobalSearch } from "./search.js";
+import { openJobDetail } from "./tameio/forms.js";
+import { jobs as getJobs } from "./tameio/store.js";
 
 const clientsApp = makeApp("client");
 const partnersApp = makeApp("partner");
@@ -99,8 +101,8 @@ function renderNav() {
   const appNav = activeModule() ? activeModule().nav() : [];
 
   const hubItems = [
-    { label: "Σήμερα", icon: "☀️", href: "#/today", active: current.appId === "today" },
-    { label: "Αρχική", icon: "🏠", href: "#/home", active: current.appId === "home" },
+    { label: "Επισκόπηση", icon: "☀️", href: "#/today", active: current.appId === "today" },
+    { label: "Εφαρμογές", icon: "🏠", href: "#/home", active: current.appId === "home" },
   ];
   const appItems = appNav.map((it) => ({
     label: it.label,
@@ -126,8 +128,8 @@ function updateHeader() {
   const addBtn = document.getElementById("btn-add");
 
   if (current.appId === "home" || current.appId === "today") {
-    brandName.textContent = current.appId === "today" ? "Σήμερα" : (appSettings.agencyName || "Γραφείο");
-    brandSub.textContent = current.appId === "today" ? "Επισκόπηση" : "Κεντρικό μενού";
+    brandName.textContent = current.appId === "today" ? "Επισκόπηση" : (appSettings.agencyName || "Γραφείο");
+    brandSub.textContent = current.appId === "today" ? "Τι εκκρεμεί" : "Εφαρμογές";
     search.style.display = "none";
     addBtn.style.display = "none";
   } else {
@@ -231,6 +233,12 @@ function bindEvents() {
   main().addEventListener("click", async (e) => {
     if (e.target.closest('[data-hub-action="logout"]')) {
       signOutUser().catch((err) => console.warn(err));
+      return;
+    }
+    const tj = e.target.closest("[data-today-job]");
+    if (tj) {
+      const j = getJobs().find((x) => x.id === tj.dataset.todayJob);
+      if (j) openJobDetail(j);
       return;
     }
     const themeBtn = e.target.closest("[data-theme-set]");
