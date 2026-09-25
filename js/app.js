@@ -10,14 +10,18 @@ import * as tameio from "./tameio/app.js";
 import * as texnikos from "./texnikos/app.js";
 import * as leads from "./leads/app.js";
 import * as aggelies from "./aggelies/app.js";
+import { makeApp } from "./contacts/app.js";
+import { renderToday } from "./today.js";
+import { openGlobalSearch } from "./search.js";
 
-const APPS = [ekremis, tameio, texnikos, leads, aggelies];
+const clientsApp = makeApp("client");
+const partnersApp = makeApp("partner");
+const APPS = [ekremis, tameio, texnikos, leads, aggelies, clientsApp, partnersApp];
 const MODULES = Object.fromEntries(APPS.map((a) => [a.meta.id, a]));
 
 const COMING_SOON = [
-  { icon: "👤", title: "Πελάτες", tagline: "Ενοποιημένη καρτέλα πελάτη από όλες τις εφαρμογές" },
-  { icon: "👷", title: "Συνεργάτες", tagline: "Υποχρεώσεις, συναλλαγές και στοιχεία συνεργατών" },
   { icon: "📄", title: "Έντυπα & Εντολές", tagline: "Γεννήτρια εντύπων, εντολών και συμβολαίων" },
+  { icon: "📣", title: "Προβολή / Social", tagline: "Δημοσιεύσεις αγγελιών και διαφημίσεων" },
 ];
 
 const LS_UI = "hub_ui_v1";
@@ -46,6 +50,7 @@ function parseRoute() {
   const h = (location.hash || "").replace(/^#\/?/, "");
   const [appId, ...rest] = h.split("/");
   if (!appId || appId === "home") return { appId: "home", sub: "" };
+  if (appId === "today") return { appId: "today", sub: "" };
   const mod = MODULES[appId];
   if (!mod) return { appId: "home", sub: "" };
   return { appId, sub: rest.join("/") || mod.meta.defaultRoute };
@@ -64,6 +69,15 @@ function ctx() {
   };
 }
 
+let keepQueryOnNav = false;
+function globalPick(res) {
+  ui.query = res.query || "";
+  const s = document.getElementById("global-search");
+  if (s) s.value = ui.query;
+  keepQueryOnNav = true;
+  location.hash = `#/${res.app}/${res.route}`;
+}
+
 function syncInfo() {
   const s = getState();
   if (!s.ready) return { text: "Φόρτωση…", cls: "" };
@@ -72,12 +86,10 @@ function syncInfo() {
   return { text: "Τοπική αποθήκευση", cls: "offline" };
 }
 
-function navItemHTML(appId, item, isHome) {
-  const href = isHome ? "#/home" : `#/${appId}/${item.route}`;
-  const active = current.appId === appId && (isHome || current.sub === item.route);
-  const badge = item && item.badge ? `<span class="badge ${item.badgeWarn ? "warn" : ""}">${item.badge}</span>` : "";
-  return `<a class="nav-item ${active ? "active" : ""}" href="${href}">
-    <span class="ni">${item.icon}</span><span class="nav-label">${item.label}</span>${badge}
+function navLink(it) {
+  const badge = it.badge ? `<span class="badge ${it.badgeWarn ? "warn" : ""}">${it.badge}</span>` : "";
+  return `<a class="nav-item ${it.active ? "active" : ""}" href="${it.href}">
+    <span class="ni">${it.icon}</span><span class="nav-label">${it.label}</span>${badge}
   </a>`;
 }
 
@@ -86,17 +98,23 @@ function renderNav() {
   const bottom = document.getElementById("bottom-nav");
   const appNav = activeModule() ? activeModule().nav() : [];
 
-  const homeItem = { route: "home", label: "Αρχική", icon: "🏠" };
-  sidebar.innerHTML = [navItemHTML("home", homeItem, true), ...appNav.map((it) => navItemHTML(current.appId, it, false))].join("");
-
-  const bn = [homeItem, ...appNav].slice(0, 4);
-  bottom.innerHTML = bn
-    .map((it, i) => {
-      const isHome = i === 0;
-      const href = isHome ? "#/home" : `#/${current.appId}/${it.route}`;
-      const active = isHome ? current.appId === "home" : current.sub === it.route;
-      return `<a class="bn-item ${active ? "active" : ""}" href="${href}"><span>${it.icon}</span><em>${it.label}</em></a>`;
-    })
+  const hubItems = [
+    { label: "Σήμερα", icon: "☀️", href: "#/today", active: current.appId === "today" },
+    { label: "Αρχική", icon: "🏠", href: "#/home", active: current.appId === "home" },
+  ];
+  const appItems = appNav.map((it) => ({
+    label: it.label,
+    icon: it.icon,
+    href: `#/${current.appId}/${it.route}`,
+    active: current.sub === it.route,
+    badge: it.badge,
+    badgeWarn: it.badgeWarn,
+  }));
+  const all = [...hubItems, ...appItems];
+  sidebar.innerHTML = all.map(navLink).join("");
+  bottom.innerHTML = all
+    .slice(0, 4)
+    .map((it) => `<a class="bn-item ${it.active ? "active" : ""}" href="${it.href}"><span>${it.icon}</span><em>${it.label}</em></a>`)
     .join("");
 }
 
@@ -107,9 +125,9 @@ function updateHeader() {
   const search = document.querySelector(".search-wrap");
   const addBtn = document.getElementById("btn-add");
 
-  if (current.appId === "home") {
-    brandName.textContent = appSettings.agencyName || "Γραφείο";
-    brandSub.textContent = "Κεντρικό μενού";
+  if (current.appId === "home" || current.appId === "today") {
+    brandName.textContent = current.appId === "today" ? "Σήμερα" : (appSettings.agencyName || "Γραφείο");
+    brandSub.textContent = current.appId === "today" ? "Επισκόπηση" : "Κεντρικό μενού";
     search.style.display = "none";
     addBtn.style.display = "none";
   } else {
@@ -139,12 +157,11 @@ function render() {
       user: currentUser ? displayName(currentUser) : "",
       onLogout: () => signOutUser(),
     });
+  } else if (current.appId === "today") {
+    renderToday(main(), ctx());
   } else {
     const mod = activeModule();
     mod.render(main(), current.sub, ctx());
-    if (mod.onStoreChange && typeof mod.onStoreChange === "function") {
-      // called again from subscribe
-    }
   }
   renderNav();
   updateHeader();
@@ -173,10 +190,17 @@ function bindEvents() {
 
   const search = document.getElementById("global-search");
   search.addEventListener("input", debounce(() => {
+    if (current.appId === "home" || current.appId === "today") {
+      search.value = "";
+      openGlobalSearch(globalPick);
+      return;
+    }
     ui.query = search.value;
-    if (current.appId === "home") return;
     render();
   }, 200));
+
+  const searchAllBtn = document.getElementById("btn-search-anywhere");
+  if (searchAllBtn) searchAllBtn.addEventListener("click", () => openGlobalSearch(globalPick));
 
   const menu = document.getElementById("btn-menu");
   const sidebar = document.getElementById("sidebar");
@@ -192,7 +216,9 @@ function bindEvents() {
   scrim.addEventListener("click", closeMenu);
 
   window.addEventListener("hashchange", () => {
-    if (ui.query) {
+    if (keepQueryOnNav) {
+      keepQueryOnNav = false;
+    } else if (ui.query) {
       ui.query = "";
       search.value = "";
     }

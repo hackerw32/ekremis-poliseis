@@ -95,6 +95,8 @@ function importFile() {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "application/json,.json";
+  input.style.display = "none";
+  document.body.appendChild(input);
   input.onchange = async () => {
     const file = input.files[0];
     if (!file) return;
@@ -106,6 +108,8 @@ function importFile() {
       toast("Έγινε εισαγωγή", "ok");
     } catch (e) {
       toast("Αποτυχία: " + e.message, "err");
+    } finally {
+      input.remove();
     }
   };
   input.click();

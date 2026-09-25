@@ -509,3 +509,12 @@ input, select, textarea { font: inherit; color: inherit; }
 .bulkbar .spacer { flex: 1; }
 .lead-check { width: 18px; height: 18px; flex-shrink: 0; }
 
+/* ============================ GLOBAL SEARCH ============================ */
+.search-results { max-height: 62vh; overflow-y: auto; }
+.search-group { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.search-hit { padding: 9px 12px; border-bottom: 1px solid var(--border-soft); cursor: pointer; }
+.search-hit:last-child { border-bottom: none; }
+.search-hit:hover { background: var(--bg-soft); }
+.sh-label { font-weight: 600; }
+.sh-sub { font-size: 12.5px; color: var(--muted); }
+
