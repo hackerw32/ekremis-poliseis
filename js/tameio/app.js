@@ -6,6 +6,7 @@ import { viewPeople } from "./view-people.js";
 import { viewReports } from "./view-reports.js";
 import { viewSettings } from "./view-settings.js";
 import { openClientForm, openPartnerForm, openJobForm, openTransactionForm, openJobDetail, openPersonHistory } from "./forms.js";
+import { openIncomeWizard } from "./income-wizard.js";
 import { getOffice, saveOffice } from "./office.js";
 import { filterTransactions } from "./insights.js";
 import { openDrawer, closeDrawer, confirmDialog } from "../modal.js";
@@ -57,7 +58,6 @@ export function nav() {
     { route: "dashboard", label: "Σύνοψη", icon: "📊" },
     { route: "transactions", label: "Συναλλαγές", icon: "🧾", badge: store.transactions().length },
     { route: "jobs", label: "Υποθέσεις", icon: "📁", badge: store.jobs().length },
-    { route: "people", label: "Πελάτες/Συνεργάτες", icon: "👥" },
     { route: "reports", label: "Αναφορές", icon: "📈" },
     { route: "settings", label: "Ρυθμίσεις", icon: "⚙️" },
   ];
@@ -84,7 +84,8 @@ function chooseTxn() {
       root.querySelectorAll("[data-pick]").forEach((b) =>
         b.addEventListener("click", () => {
           closeDrawer();
-          openTransactionForm({ type: b.dataset.pick });
+          if (b.dataset.pick === "Έσοδο") openIncomeWizard();
+          else openTransactionForm({ type: "Έξοδο" });
         })
       );
     },
@@ -161,7 +162,7 @@ function reportPrint() {
 
 async function handleAction(action, el) {
   switch (action) {
-    case "add-txn-income": openTransactionForm({ type: "Έσοδο" }); break;
+    case "add-txn-income": openIncomeWizard(); break;
     case "add-txn-expense": openTransactionForm({ type: "Έξοδο" }); break;
     case "add-job": openJobForm(null); break;
     case "add-client": openClientForm(null); break;

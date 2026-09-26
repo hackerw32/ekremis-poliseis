@@ -27,7 +27,7 @@ export function viewPeople(ctx, kind) {
             <span class="t-badge out">${isPartner ? "👷" : "👤"}</span>
             <div class="t-main" data-person="open" data-id="${escapeHtml(p.id)}" style="cursor:pointer">
               <div class="t-title">${escapeHtml(p.name || "")}</div>
-              <div class="t-sub">${escapeHtml(p.specialty || "")}${p.specialty && p.phone ? " · " : ""}${escapeHtml(p.phone || "")}${p.tax_id ? " · ΑΦΜ " + escapeHtml(p.tax_id) : ""}</div>
+              <div class="t-sub">${p.code_technical ? "Α/Π " + escapeHtml(p.code_technical) + " · " : ""}${p.code_realestate ? escapeHtml(p.code_realestate) + " · " : ""}${escapeHtml(p.specialty || "")}${p.specialty && p.phone ? " · " : ""}${escapeHtml(p.phone || "")}${p.tax_id ? " · ΑΦΜ " + escapeHtml(p.tax_id) : ""}</div>
             </div>
             ${l.owed > 0.004 ? `<span class="tag-mini" style="background:var(--danger-soft);color:var(--danger)">${isPartner ? "Οφείλουμε" : "Μας οφείλει"} ${formatCurrency(l.owed, cur)}</span>` : ""}
             <span class="t-amt text-muted" style="font-weight:600;font-size:12px">${formatCurrency(l.total, cur)}</span>

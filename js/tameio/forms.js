@@ -54,13 +54,15 @@ export function openClientForm(client) {
         <div class="field full"><label>Ονοματεπώνυμο</label><input class="input" data-field="name" value="${escapeHtml(c.name)}" /></div>
         <div class="field"><label>Τηλέφωνο</label><input class="input" data-field="phone" value="${escapeHtml(c.phone)}" /></div>
         <div class="field"><label>ΑΦΜ</label><input class="input" data-field="tax_id" value="${escapeHtml(c.tax_id)}" /></div>
+        <div class="field"><label>Κωδικός Τεχνικού (Α/Π)</label><input class="input" data-field="code_technical" value="${escapeHtml(c.code_technical || "")}" /></div>
+        <div class="field"><label>Κωδικός Μεσιτικού</label><input class="input" data-field="code_realestate" value="${escapeHtml(c.code_realestate || "")}" /></div>
         <div class="field full"><label>Διεύθυνση</label><input class="input" data-field="address" value="${escapeHtml(c.address)}" /></div>
         <div class="field full"><label>Σημειώσεις</label><textarea class="textarea" rows="3" data-field="notes">${escapeHtml(c.notes)}</textarea></div>
       </div>`,
     footer: footer(),
     onMount(root) {
       bindFooter(root, async () => {
-        const data = { name: get(root, "name"), phone: get(root, "phone"), tax_id: get(root, "tax_id"), address: get(root, "address"), notes: get(root, "notes") };
+        const data = { name: get(root, "name"), phone: get(root, "phone"), tax_id: get(root, "tax_id"), code_technical: get(root, "code_technical"), code_realestate: get(root, "code_realestate"), address: get(root, "address"), notes: get(root, "notes") };
         if (!data.name) return toast("Συμπλήρωσε όνομα", "err");
         if (isEdit) await store.updateClient(c.id, data);
         else await store.addClient(data);
