@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "XE.gr → Αγγελίες (Γραφείο)",
+  "version": "1.0.0",
+  "description": "Μαζεύει τις αγγελίες σου από το xe.gr και τις εξάγει σε JSON για το dashboard.",
+  "permissions": ["activeTab", "scripting", "downloads"],
+  "host_permissions": ["https://www.xe.gr/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "XE.gr → Αγγελίες"
+  }
+}
